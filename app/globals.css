@@ -1,0 +1,290 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* WowCap Platform Design System - Blue Gradient Theme */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    /* Card colors */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    /* Popover colors */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary - Blue 600 */
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Blue 500 */
+    --secondary: 217 91% 60%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted - Gray 50 */
+    --muted: 210 40% 98%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent - Blue 500 */
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive - Red 500 */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Success - Green 500 */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning - Yellow 500 */
+    --warning: 45 93% 47%;
+    --warning-foreground: 222 47% 11%;
+
+    /* Info - Blue 500 */
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+
+    /* Hot Lead - Orange 500 */
+    --hot: 25 95% 53%;
+    --hot-foreground: 0 0% 100%;
+
+    /* Border */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+
+    /* Radius */
+    --radius: 0.5rem;
+
+    /* Sidebar - Blue Gradient (600 to 800) */
+    --sidebar-from: 221 83% 53%; /* blue-600 */
+    --sidebar-to: 217 91% 35%; /* blue-800 */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-active: 0 0% 100%;
+    --sidebar-active-foreground: 221 83% 53%;
+    --sidebar-hover: 0 0% 100% / 0.1;
+
+    /* Status Colors */
+    --status-active: 142 71% 45%; /* green-500 */
+    --status-inactive: 0 84% 60%; /* red-500 */
+    --status-pending: 215 16% 47%; /* gray-600 */
+    --status-hot: 25 95% 53%; /* orange-500 */
+    --status-warm: 45 93% 47%; /* yellow-500 */
+    --status-cold: 217 91% 60%; /* blue-500 */
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 32% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  /* Sidebar Gradient */
+  .sidebar-gradient {
+    background: linear-gradient(180deg, hsl(var(--sidebar-from)), hsl(var(--sidebar-to)));
+  }
+
+  /* Status Badge Utilities */
+  .badge-active {
+    @apply bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400;
+  }
+
+  .badge-inactive {
+    @apply bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400;
+  }
+
+  .badge-pending {
+    @apply bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400;
+  }
+
+  .badge-hot {
+    @apply bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400;
+  }
+
+  .badge-warm {
+    @apply bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400;
+  }
+
+  .badge-cold {
+    @apply bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400;
+  }
+
+  /* Card Hover Effect */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
+  }
+
+  /* Button Hover Effect */
+  .button-hover {
+    @apply transition-all duration-150 hover:opacity-90;
+  }
+
+  /* Gradient Button Utilities - Always use white text for visibility */
+  .btn-gradient-blue {
+    @apply bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800;
+  }
+
+  .btn-gradient-green {
+    @apply bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800;
+  }
+
+  .btn-gradient-purple {
+    @apply bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800;
+  }
+
+  .btn-gradient-orange {
+    @apply bg-gradient-to-r from-orange-600 to-orange-700 text-white hover:from-orange-700 hover:to-orange-800;
+  }
+
+  .btn-gradient-indigo {
+    @apply bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:from-indigo-700 hover:to-indigo-800;
+  }
+
+  /* Icon Button Styles */
+  .icon-btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white transition-colors;
+  }
+
+  .icon-btn-success {
+    @apply bg-green-600 hover:bg-green-700 text-white transition-colors;
+  }
+
+  .icon-btn-warning {
+    @apply bg-orange-600 hover:bg-orange-700 text-white transition-colors;
+  }
+
+  .icon-btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white transition-colors;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes bounce-subtle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+  background: linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+  background-size: 1000px 100%;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+/* Mobile Responsive Table */
+@media (max-width: 768px) {
+  .table-responsive {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
