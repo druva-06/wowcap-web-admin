@@ -213,4 +213,23 @@ export default function CollegeLoginPage() {
                     className="w-full border-purple-300 text-purple-600 hover:bg-purple-50 bg-transparent"
                   >
                     Use Demo College Credentials
-                  </Button>\
+                  </Button>
+                  <p className="text-xs text-gray-400 mt-3">Email: college@wowcap.com | Password: college123</p>
+                </div>
+              </div>
+
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-600">
+                  Need help?{" "}
+                  <Link href="/contact" className="text-purple-600 hover:text-purple-700 font-medium">
+                    Contact Support
+                  </Link>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
