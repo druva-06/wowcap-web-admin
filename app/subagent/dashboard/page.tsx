@@ -43,8 +43,9 @@ export default function SubAgentDashboard() {
       return
     }
 
-    // Check if user has SUBAGENT role
-    if (user.role !== "SUBAGENT") {
+    // Check if user has SUBAGENT or SUB_AGENT role
+    const userRole = user.role?.toUpperCase()
+    if (userRole !== "SUBAGENT" && userRole !== "SUB_AGENT") {
       setHasUnauthorizedAccess(true)
       return
     }
@@ -193,7 +194,7 @@ export default function SubAgentDashboard() {
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>
-              </Link>
+              </div>
             </div>
           </div>
         </div>

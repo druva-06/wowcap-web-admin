@@ -56,12 +56,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.success && data.response) {
         const apiUser = data.response.user
 
+        // Normalize role: Convert SUPER_ADMIN to admin
+        let normalizedRole = apiUser.role
+        if (apiUser.role?.toUpperCase() === 'SUPER_ADMIN') {
+          normalizedRole = 'admin'
+        }
+
         // Transform API response to our User format
         const user: User = {
           id: apiUser.user_id || apiUser.id,
           name: `${apiUser.first_name || ''} ${apiUser.last_name || ''}`.trim() || apiUser.username,
           email: apiUser.email,
-          role: apiUser.role,
+          role: normalizedRole,
           phone: apiUser.phone_number,
           first_name: apiUser.first_name,
           last_name: apiUser.last_name,
@@ -98,17 +104,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           case 'COLLEGE':
             redirectPath = '/college/dashboard'
             break
+          case 'SUB_AGENT':
           case 'SUBAGENT':
             redirectPath = '/subagent/dashboard'
+            break
+          case 'COUNSELOR':
+          case 'COUNSELLOR':
+            redirectPath = '/counselor/dashboard'
             break
           case 'SUPER_ADMIN':
           case 'ADMIN':
             redirectPath = '/admin/dashboard'
             break
           case 'MANAGER':
-            redirectPath = '/admin/dashboard'
-            break
-          case 'COUNSELOR':
             redirectPath = '/admin/dashboard'
             break
           default:
@@ -151,16 +159,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     secureStorage.removeItem("refresh_token", sessionStorage)
   }
 
-  const isAdmin = user?.role === "admin" || user?.role === "SUPER_ADMIN"
-  const isManager = user?.role === "manager"
-  const isCounselor = user?.role === "counselor"
+  const isAdmin = user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "super_admin"
+  const isManager = user?.role?.toLowerCase() === "manager"
+  const isCounselor = user?.role?.toLowerCase() === "counselor"
 
   const hasPermission = (permission: string): boolean => {
     if (!user) return false
 
-    // Define permissions by role
+    // Define permissions by role (case-insensitive)
+    const userRole = user.role?.toLowerCase()
     const permissions: Record<string, string[]> = {
       admin: ["*"], // Admin has all permissions
+      super_admin: ["*"], // Super Admin has all permissions (same as admin)
       manager: [
         "view-leads",
         "assign-leads",
@@ -173,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       counselor: ["view-leads", "call-leads", "update-lead-status", "book-appointments", "view-own-leads"],
     }
 
-    const userPermissions = permissions[user.role] || []
+    const userPermissions = permissions[userRole || ''] || []
 
     // Admin has all permissions
     if (userPermissions.includes("*")) return true

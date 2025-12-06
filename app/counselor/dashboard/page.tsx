@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { useAuth } from "@/lib/auth-context"
 import {
   Users,
   Calendar,
@@ -29,15 +30,6 @@ import {
   Target,
 } from "lucide-react"
 
-interface CounselorData {
-  email: string
-  name: string
-  role: string
-  counselorId: string
-  assignedStudents: number
-  loginTime: string
-}
-
 // Custom Avatar Components
 const Avatar = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <div className={`relative inline-flex items-center justify-center ${className}`}>{children}</div>
@@ -49,22 +41,30 @@ const AvatarFallback = ({ children, className = "" }: { children: React.ReactNod
 
 export default function CounselorDashboard() {
   const router = useRouter()
-  const [counselor, setCounselor] = useState<CounselorData | null>(null)
+  const { user, loading: authLoading, logout, isCounselor } = useAuth()
   const [activeTab, setActiveTab] = useState("overview")
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
-    const counselorData = localStorage.getItem("wowcap_counselor")
-    if (!counselorData) {
-      router.push("/counselor/login")
+    // Wait for auth to finish loading
+    if (authLoading) return
+
+    // Check if user is logged in
+    if (!user) {
+      router.push("/login")
       return
     }
-    setCounselor(JSON.parse(counselorData))
-  }, [router])
+
+    // Check if user has counselor role
+    if (!isCounselor && user.role?.toUpperCase() !== 'COUNSELOR' && user.role?.toUpperCase() !== 'COUNSELLOR') {
+      router.push("/login")
+      return
+    }
+  }, [router, user, authLoading, isCounselor])
 
   const handleLogout = () => {
-    localStorage.removeItem("wowcap_counselor")
-    router.push("/counselor/login")
+    logout()
+    router.push("/login")
   }
 
   const sidebarItems = [
@@ -77,7 +77,8 @@ export default function CounselorDashboard() {
     { id: "performance", label: "Performance", icon: Target, color: "text-pink-600" },
   ]
 
-  if (!counselor) {
+  // Show loading state while auth is loading
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -86,6 +87,11 @@ export default function CounselorDashboard() {
         </div>
       </div>
     )
+  }
+
+  // If no user after loading, return null (redirect will happen in useEffect)
+  if (!user) {
+    return null
   }
 
   const renderContent = () => {
@@ -98,7 +104,7 @@ export default function CounselorDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold mb-2">Welcome back, {counselor.name}! 👋</h2>
+                    <h2 className="text-2xl font-bold mb-2">Welcome back, {user.name}! 👋</h2>
                     <p className="text-green-100">Student Counselor Dashboard</p>
                   </div>
                   <div className="text-6xl opacity-20">👩‍🏫</div>
@@ -118,7 +124,7 @@ export default function CounselorDashboard() {
                       <Users className="w-6 h-6 text-blue-600" />
                     </div>
                     <div className="ml-4">
-                      <div className="text-2xl font-bold">{counselor.assignedStudents}</div>
+                      <div className="text-2xl font-bold">0</div>
                       <div className="text-sm text-gray-600">Assigned Students</div>
                     </div>
                   </div>
@@ -262,7 +268,7 @@ export default function CounselorDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  My Students ({counselor.assignedStudents})
+                  My Students (0)
                   <div className="flex space-x-2">
                     <Button variant="outline" size="sm">
                       <Filter className="w-4 h-4 mr-2" />
@@ -394,9 +400,8 @@ export default function CounselorDashboard() {
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-green-800 to-teal-900 shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0`}
+        className={`fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-green-800 to-teal-900 shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } lg:translate-x-0`}
       >
         <div className="flex flex-col h-full">
           {/* Logo & Close Button */}
@@ -420,12 +425,12 @@ export default function CounselorDashboard() {
             <div className="flex items-center space-x-3">
               <Avatar className="w-10 h-10">
                 <AvatarFallback className="w-10 h-10 text-sm bg-white text-green-600">
-                  {counselor.name.charAt(0).toUpperCase()}
+                  {user.name?.charAt(0).toUpperCase() || 'C'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{counselor.name}</p>
-                <p className="text-xs text-green-200 truncate">{counselor.counselorId}</p>
+                <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                <p className="text-xs text-green-200 truncate">{user.email}</p>
               </div>
             </div>
           </div>
@@ -442,11 +447,10 @@ export default function CounselorDashboard() {
                       setActiveTab(item.id)
                       setSidebarOpen(false)
                     }}
-                    className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      activeTab === item.id
+                    className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${activeTab === item.id
                         ? "bg-white text-green-600 shadow-lg"
                         : "text-green-200 hover:bg-green-700 hover:text-white"
-                    }`}
+                      }`}
                   >
                     <Icon className={`w-5 h-5 mr-3 ${activeTab === item.id ? "text-green-600" : ""}`} />
                     {item.label}
@@ -502,10 +506,10 @@ export default function CounselorDashboard() {
               </Button>
               <div className="flex items-center space-x-2">
                 <Avatar className="w-8 h-8">
-                  <AvatarFallback className="w-8 h-8 text-sm">{counselor.name.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback className="w-8 h-8 text-sm">{user.name?.charAt(0).toUpperCase() || 'C'}</AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium text-gray-900">{counselor.name}</p>
+                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
                   <p className="text-xs text-gray-500">Counselor</p>
                 </div>
               </div>

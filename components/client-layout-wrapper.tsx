@@ -12,12 +12,13 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
   const isAdminRoute = pathname?.startsWith("/admin")
   const isCollegeRoute = pathname?.startsWith("/college")
   const isSubagentRoute = pathname?.startsWith("/subagent")
-  const isDashboardRoute = isAdminRoute || isCollegeRoute || isSubagentRoute
+  const isCounselorRoute = pathname?.startsWith("/counselor")
+  const isDashboardRoute = isAdminRoute || isCollegeRoute || isSubagentRoute || isCounselorRoute
 
   return (
     <AuthProvider>
       {isDashboardRoute ? (
-        // Dashboard routes (admin, college, subagent): no header, footer, or chatbot
+        // Dashboard routes (admin, college, subagent, counselor): no header, footer, or chatbot
         <>{children}</>
       ) : (
         // Regular routes: include header, footer, and chatbot

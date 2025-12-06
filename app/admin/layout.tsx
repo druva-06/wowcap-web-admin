@@ -34,7 +34,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   const { user, loading: authLoading, logout, isAdmin, isManager, isCounselor } = useAuth()
 
-  const isLoginPage = pathname === "/admin/login"
+  const isLoginPage = pathname === "/login"
 
   useEffect(() => {
     if (isLoginPage) return
@@ -43,13 +43,16 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     if (authLoading) return
 
     if (!user) {
-      router.push("/admin/login")
+      router.push("/login")
       return
     }
 
     // Check if user has admin access (admin, manager, counselor, or SUPER_ADMIN)
-    const allowedRoles = ["admin", "manager", "counselor", "SUPER_ADMIN"]
-    if (!allowedRoles.includes(user.role)) {
+    // Make case-insensitive comparison
+    const userRole = user.role?.toLowerCase()
+    const allowedRoles = ["admin", "manager", "counselor", "super_admin"]
+
+    if (!allowedRoles.includes(userRole)) {
       setHasUnauthorizedAccess(true)
     } else {
       setHasUnauthorizedAccess(false)
@@ -160,7 +163,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     logout()
-    router.push("/admin/login")
+    router.push("/login")
   }
 
   if (isLoginPage) {

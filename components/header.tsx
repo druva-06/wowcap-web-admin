@@ -570,22 +570,13 @@ export function Header() {
                   <div className="absolute top-full right-0 mt-3 w-48 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 border border-gray-100/50 z-50">
                     <div className="p-2">
                       <div className="space-y-1">
-                        {[
-                          { href: "/login", name: "Student Login", icon: User },
-                          { href: "/admin/login", name: "Admin Login", icon: User },
-                          { href: "/agent/login", name: "Agent Login", icon: User },
-                          { href: "/counselor/login", name: "Counselor Login", icon: User },
-                          { href: "/college/login", name: "College Login", icon: User },
-                        ].map((login) => (
-                          <Link
-                            key={login.href}
-                            href={login.href}
-                            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:text-slate-900 hover:bg-gray-50 rounded-lg transition-all duration-200"
-                          >
-                            <login.icon className="w-3 h-3 text-slate-500" />
-                            <span className="font-medium">{login.name}</span>
-                          </Link>
-                        ))}
+                        <Link
+                          href="/login"
+                          className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:text-slate-900 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                        >
+                          <User className="w-3 h-3 text-slate-500" />
+                          <span className="font-medium">Login</span>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -940,23 +931,15 @@ export function Header() {
                             <span className="text-sm font-bold text-gray-800">Login Options</span>
                           </div>
                           <div className="space-y-2">
-                            {[
-                              { href: "/login", name: "Student Login", color: "blue" },
-                              { href: "/admin/login", name: "Admin Login", color: "red" },
-                              { href: "/agent/login", name: "Agent Login", color: "yellow" },
-                              { href: "/counselor/login", name: "Counselor Login", color: "green" },
-                              { href: "/college/login", name: "College Login", color: "purple" },
-                            ].map((login) => (
-                              <Link key={login.href} href={login.href} onClick={() => setIsMenuOpen(false)}>
-                                <Button
-                                  variant="ghost"
-                                  className="w-full justify-start text-blue-600 hover:bg-white/80 rounded-xl shadow-sm"
-                                >
-                                  <User className="w-4 h-4 mr-3" />
-                                  {login.name}
-                                </Button>
-                              </Link>
-                            ))}
+                            <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                              <Button
+                                variant="ghost"
+                                className="w-full justify-start text-blue-600 hover:bg-white/80 rounded-xl shadow-sm"
+                              >
+                                <User className="w-4 h-4 mr-3" />
+                                Login
+                              </Button>
+                            </Link>
                           </div>
                         </div>
                         <div>

@@ -16,7 +16,7 @@ export default function PortalsPage() {
       hoverBg: "hover:bg-red-50",
       textColor: "text-red-600",
       borderColor: "border-red-200",
-      loginUrl: "/admin/login",
+      loginUrl: "/login",
       dashboardUrl: "/admin/dashboard",
       features: ["User Management", "System Analytics", "Content Management", "Security Settings"],
       credentials: {
@@ -34,7 +34,7 @@ export default function PortalsPage() {
       hoverBg: "hover:bg-green-50",
       textColor: "text-green-600",
       borderColor: "border-green-200",
-      loginUrl: "/counselor/login",
+      loginUrl: "/login",
       dashboardUrl: "/counselor/dashboard",
       features: ["Student Sessions", "Appointment Management", "Progress Tracking", "Reports"],
       credentials: {
@@ -52,7 +52,7 @@ export default function PortalsPage() {
       hoverBg: "hover:bg-purple-50",
       textColor: "text-purple-600",
       borderColor: "border-purple-200",
-      loginUrl: "/college/login",
+      loginUrl: "/login",
       dashboardUrl: "/college/dashboard",
       features: ["Course Management", "Application Review", "Student Enrollment", "Analytics"],
       credentials: {
@@ -70,7 +70,7 @@ export default function PortalsPage() {
       hoverBg: "hover:bg-yellow-50",
       textColor: "text-yellow-600",
       borderColor: "border-yellow-200",
-      loginUrl: "/agent/login",
+      loginUrl: "/login",
       dashboardUrl: "/agent/dashboard",
       features: ["Lead Management", "Commission Tracking", "Partner Resources", "Performance"],
       credentials: {

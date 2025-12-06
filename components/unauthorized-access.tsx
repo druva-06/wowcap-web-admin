@@ -25,11 +25,14 @@ export function UnauthorizedAccess({
         switch (role?.toUpperCase()) {
             case "COLLEGE":
                 return "/college/dashboard"
+            case "SUB_AGENT":
             case "SUBAGENT":
                 return "/subagent/dashboard"
+            case "COUNSELOR":
+            case "COUNSELLOR":
+                return "/counselor/dashboard"
             case "ADMIN":
             case "MANAGER":
-            case "COUNSELOR":
             case "SUPER_ADMIN":
                 return "/admin/dashboard"
             case "STUDENT":
