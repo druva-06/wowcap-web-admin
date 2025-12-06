@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
+import { UnauthorizedAccess } from "@/components/unauthorized-access"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +28,7 @@ import {
   MapPin,
   Phone,
   Mail,
+  LogOut,
 } from "lucide-react"
 
 interface StudentApplication {
@@ -57,22 +60,50 @@ interface StudentApplication {
 
 export default function CollegeDashboardPage() {
   const router = useRouter()
+  const { user, loading: authLoading, logout } = useAuth()
   const [activeTab, setActiveTab] = useState("dashboard")
   const [collegeData, setCollegeData] = useState<any>(null)
   const [applications, setApplications] = useState<StudentApplication[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [loading, setLoading] = useState(true)
+  const [hasUnauthorizedAccess, setHasUnauthorizedAccess] = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    router.push("/login")
+  }
 
   useEffect(() => {
-    // Check authentication
-    const college = localStorage.getItem("wowcap_college")
-    if (!college) {
-      router.push("/college/login")
+    // Wait for auth to finish loading
+    if (authLoading) {
       return
     }
 
-    setCollegeData(JSON.parse(college))
+    // Check authentication with new auth context
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+    // Check if user has COLLEGE role
+    if (user.role !== "COLLEGE") {
+      setHasUnauthorizedAccess(true)
+      return
+    }
+
+    setHasUnauthorizedAccess(false)
+
+    // Set college data from user
+    setCollegeData({
+      email: user.email,
+      name: user.name || user.username,
+      role: user.role,
+      collegeId: user.user_id,
+      collegeName: user.name || "College Partner",
+      pendingApplications: 45,
+      loginTime: new Date().toISOString(),
+    })
 
     // Mock applications data
     const mockApplications: StudentApplication[] = [
@@ -128,7 +159,7 @@ export default function CollegeDashboardPage() {
 
     setApplications(mockApplications)
     setLoading(false)
-  }, [router])
+  }, [router, user, authLoading])
 
   const handleStatusUpdate = (applicationId: string, newStatus: string) => {
     setApplications((prev) =>
@@ -196,7 +227,8 @@ export default function CollegeDashboardPage() {
     { id: "settings", label: "Settings", icon: Settings },
   ]
 
-  if (loading) {
+  // Show loading while authentication is being checked or data is loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -209,48 +241,111 @@ export default function CollegeDashboardPage() {
     )
   }
 
+  // Show unauthorized access page if user doesn't have college role
+  if (hasUnauthorizedAccess) {
+    return (
+      <UnauthorizedAccess
+        message="College Access Required"
+        allowedRoles={["College Partner"]}
+        userRole={user?.role}
+      />
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
-        <div className="p-6 border-b">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      {/* Sidebar - Fixed Left Navigation */}
+      <div className="w-64 bg-gradient-to-b from-purple-600 via-purple-700 to-purple-800 text-white flex flex-col shadow-2xl">
+        {/* Logo Section */}
+        <div className="p-6 border-b border-purple-500/30">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center shadow-xl border border-white/30">
+              <GraduationCap className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">{collegeData?.collegeName}</h1>
-              <p className="text-sm text-gray-500">College Portal</p>
+              <h1 className="text-xl font-bold">WowCap</h1>
+              <p className="text-xs text-purple-100">College Portal</p>
             </div>
           </div>
         </div>
 
-        <nav className="p-4">
-          {sidebarItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                activeTab === item.id ? "bg-purple-100 text-purple-700" : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
+        {/* College Info */}
+        <div className="px-6 py-4 bg-white/10 border-b border-purple-500/30">
+          <p className="text-sm font-medium text-purple-100">Logged in as:</p>
+          <p className="text-base font-semibold text-white truncate">{collegeData?.collegeName}</p>
+        </div>
+
+        {/* Navigation Menu */}
+        <nav className="flex-1 px-4 py-6 overflow-y-auto">
+          <ul className="space-y-1">
+            {sidebarItems.map((item) => {
+              const isActive = activeTab === item.id
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => setActiveTab(item.id)}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all ${isActive
+                      ? "bg-white text-purple-600 shadow-lg font-semibold"
+                      : "text-purple-100 hover:bg-purple-500/20 hover:text-white"
+                      }`}
+                  >
+                    <item.icon className={`w-5 h-5 ${isActive ? "text-purple-600" : "text-purple-200"}`} />
+                    <span className="font-medium">{item.label}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </nav>
+
+        {/* Logout Button */}
+        <div className="p-4 border-t border-purple-500/30">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors text-purple-100 hover:bg-red-500/20 hover:text-white"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Logout</span>
+          </button>
+        </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-8">
-        {activeTab === "dashboard" && (
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Header */}
+        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
+                {activeTab === "dashboard" && "Dashboard Overview"}
+                {activeTab === "applications" && "Applications Management"}
+                {activeTab === "documents" && "Documents"}
+                {activeTab === "analytics" && "Analytics & Reports"}
+                {activeTab === "communications" && "Communications"}
+                {activeTab === "settings" && "Settings"}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">Welcome back, {collegeData?.name}</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Bell className="w-5 h-5 text-gray-400 cursor-pointer hover:text-gray-600" />
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-semibold">{collegeData?.name?.charAt(0) || "C"}</span>
+                </div>
+                <div className="text-left hidden md:block">
+                  <p className="text-sm font-medium text-gray-900">{collegeData?.name}</p>
+                  <p className="text-xs text-gray-500 capitalize">{user?.role || "College"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-8">{activeTab === "dashboard" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-              <div className="flex items-center space-x-2">
-                <Bell className="w-5 h-5 text-gray-400" />
-                <span className="text-sm text-gray-600">Welcome back, {collegeData?.name}</span>
-              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Dashboard Overview</h2>
             </div>
 
             {/* Stats Cards */}
@@ -342,136 +437,137 @@ export default function CollegeDashboardPage() {
           </div>
         )}
 
-        {activeTab === "applications" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-gray-900">Student Applications</h1>
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Search applications..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-64"
-                  />
+          {activeTab === "applications" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold text-gray-900">Student Applications</h1>
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Input
+                      placeholder="Search applications..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 w-64"
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="under-review">Under Review</option>
+                    <option value="accepted">Accepted</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="waitlisted">Waitlisted</option>
+                  </select>
                 </div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="under-review">Under Review</option>
-                  <option value="accepted">Accepted</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="waitlisted">Waitlisted</option>
-                </select>
+              </div>
+
+              <div className="grid gap-6">
+                {filteredApplications.map((app) => (
+                  <Card key={app.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                            <User className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{app.studentName}</h3>
+                            <p className="text-gray-600">{app.program}</p>
+                            <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                              <div className="flex items-center space-x-1">
+                                <Mail className="w-4 h-4" />
+                                <span>{app.email}</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <Phone className="w-4 h-4" />
+                                <span>{app.phone}</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <MapPin className="w-4 h-4" />
+                                <span>{app.country}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Star className={`w-4 h-4 ${getPriorityColor(app.priority)}`} />
+                          <Badge className={getStatusColor(app.status)}>
+                            {app.status.replace("-", " ").toUpperCase()}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600">GPA</p>
+                          <p className="font-semibold text-gray-900">{app.gpa}</p>
+                        </div>
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600">Documents</p>
+                          <p className="font-semibold text-gray-900">{app.documents.total}/10</p>
+                        </div>
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600">Profile</p>
+                          <p className="font-semibold text-gray-900">{app.profileCompletion}%</p>
+                        </div>
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600">Applied</p>
+                          <p className="font-semibold text-gray-900">{app.applicationDate}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          {Object.entries(app.testScores).map(([test, score]) => (
+                            <div key={test} className="text-sm">
+                              <span className="text-gray-600">{test.toUpperCase()}:</span>
+                              <span className="font-medium ml-1">{score}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button size="sm" variant="outline">
+                            <Eye className="w-4 h-4 mr-1" />
+                            View Details
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            <Download className="w-4 h-4 mr-1" />
+                            Documents
+                          </Button>
+                          {app.status === "pending" && (
+                            <>
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleStatusUpdate(app.id, "accepted")}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleStatusUpdate(app.id, "rejected")}
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
-
-            <div className="grid gap-6">
-              {filteredApplications.map((app) => (
-                <Card key={app.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-start space-x-4">
-                        <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                          <User className="w-6 h-6 text-purple-600" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{app.studentName}</h3>
-                          <p className="text-gray-600">{app.program}</p>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                            <div className="flex items-center space-x-1">
-                              <Mail className="w-4 h-4" />
-                              <span>{app.email}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Phone className="w-4 h-4" />
-                              <span>{app.phone}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <MapPin className="w-4 h-4" />
-                              <span>{app.country}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Star className={`w-4 h-4 ${getPriorityColor(app.priority)}`} />
-                        <Badge className={getStatusColor(app.status)}>
-                          {app.status.replace("-", " ").toUpperCase()}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">GPA</p>
-                        <p className="font-semibold text-gray-900">{app.gpa}</p>
-                      </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">Documents</p>
-                        <p className="font-semibold text-gray-900">{app.documents.total}/10</p>
-                      </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">Profile</p>
-                        <p className="font-semibold text-gray-900">{app.profileCompletion}%</p>
-                      </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">Applied</p>
-                        <p className="font-semibold text-gray-900">{app.applicationDate}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        {Object.entries(app.testScores).map(([test, score]) => (
-                          <div key={test} className="text-sm">
-                            <span className="text-gray-600">{test.toUpperCase()}:</span>
-                            <span className="font-medium ml-1">{score}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-4 h-4 mr-1" />
-                          View Details
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Download className="w-4 h-4 mr-1" />
-                          Documents
-                        </Button>
-                        {app.status === "pending" && (
-                          <>
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleStatusUpdate(app.id, "accepted")}
-                            >
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleStatusUpdate(app.id, "rejected")}
-                            >
-                              <XCircle className="w-4 h-4 mr-1" />
-                              Reject
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

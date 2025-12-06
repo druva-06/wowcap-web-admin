@@ -1,12 +1,18 @@
 // Mock data store for the application
 export interface User {
-  id: string
+  id: string | number
   name: string
   email: string
-  role: "admin" | "manager" | "counselor"
+  role: "admin" | "manager" | "counselor" | "COLLEGE" | "SUBAGENT" | "SUPER_ADMIN"
   avatar?: string
   phone?: string
   department?: string
+  // Additional fields from API response
+  first_name?: string
+  last_name?: string
+  username?: string
+  phone_number?: string
+  user_id?: number
 }
 
 export interface Campaign {

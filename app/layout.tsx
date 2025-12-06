@@ -3,13 +3,14 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import ClientLayoutWrapper from "@/components/client-layout-wrapper"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "WowCap - Your Educational Journey Partner",
   description: "Comprehensive guidance for study abroad, education loans, and career development",
-    generator: 'v0.app'
+  generator: 'v0.app'
 }
 
 export default function RootLayout({
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
+        <Toaster />
       </body>
     </html>
   )

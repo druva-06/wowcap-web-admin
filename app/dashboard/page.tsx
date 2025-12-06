@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -531,6 +532,7 @@ const shortlistData = {
 export default function DashboardPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user: authUser, loading: authLoading } = useAuth()
   const [user, setUser] = useState<UnifiedUserProfile | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
   const [activeSubTab, setActiveSubTab] = useState("")
@@ -540,6 +542,57 @@ export default function DashboardPage() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState("abroad")
+
+  // Check authentication
+  useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return
+
+    // Check if user is authenticated
+    if (!authUser) {
+      router.push("/login")
+      return
+    }
+
+    // Redirect all authenticated users to their appropriate dashboards
+    // (Students don't have login access to this portal)
+    switch (authUser.role) {
+      case "admin":
+      case "manager":
+      case "counselor":
+      case "SUPER_ADMIN":
+        router.push("/admin/dashboard")
+        return
+      case "COLLEGE":
+        router.push("/college/dashboard")
+        return
+      case "SUBAGENT":
+        router.push("/subagent/dashboard")
+        return
+      default:
+        // Unknown role, redirect to login
+        router.push("/login")
+        return
+    }
+  }, [authUser, authLoading, router])
+
+  // Show loading while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!authUser) {
+    return null
+  }
 
   const [appDocuments, setAppDocuments] = useState<any[]>([])
   const [applicationsData, setApplicationsData] = useState<Application[]>([])
@@ -1624,10 +1677,10 @@ export default function DashboardPage() {
       documents.map((doc) =>
         doc.id === id
           ? {
-              ...doc,
-              status,
-              uploadDate: status === "uploaded" ? new Date().toISOString().split("T")[0] : doc.uploadDate,
-            }
+            ...doc,
+            status,
+            uploadDate: status === "uploaded" ? new Date().toISOString().split("T")[0] : doc.uploadDate,
+          }
           : doc,
       ),
     )
@@ -1792,9 +1845,9 @@ export default function DashboardPage() {
       tasks.map((task) =>
         task.id === taskId
           ? {
-              ...task,
-              status,
-            }
+            ...task,
+            status,
+          }
           : task,
       ),
     )
@@ -2180,11 +2233,10 @@ export default function DashboardPage() {
                     <button
                       key={subtab.id}
                       onClick={() => handleTabChange("shortlist", subtab.id)}
-                      className={`flex-1 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-                        activeSubTab === subtab.id || (activeSubTab === "" && subtab.id === "overall")
-                          ? "bg-blue-600 text-white shadow-md"
-                          : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-                      }`}
+                      className={`flex-1 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${activeSubTab === subtab.id || (activeSubTab === "" && subtab.id === "overall")
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                        }`}
                     >
                       {subtab.label}
                     </button>
@@ -2262,11 +2314,10 @@ export default function DashboardPage() {
                     <button
                       key={subtab.id}
                       onClick={() => handleTabChange("applications", subtab.id)}
-                      className={`flex-1 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-                        activeSubTab === subtab.id || (activeSubTab === "" && subtab.id === "in-progress")
-                          ? "bg-blue-600 text-white shadow-md"
-                          : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-                      }`}
+                      className={`flex-1 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${activeSubTab === subtab.id || (activeSubTab === "" && subtab.id === "in-progress")
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                        }`}
                     >
                       {subtab.label}
                     </button>
@@ -2374,9 +2425,8 @@ export default function DashboardPage() {
                                     {stages.map((stage, index) => (
                                       <div key={stage.id} className="flex flex-col items-center z-10 px-2">
                                         <div
-                                          className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium ${
-                                            stage.completed ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
-                                          }`}
+                                          className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium ${stage.completed ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+                                            }`}
                                         >
                                           {stage.completed ? <CheckCircle className="w-4 h-4" /> : stage.id}
                                         </div>
@@ -2562,17 +2612,15 @@ export default function DashboardPage() {
                           return (
                             <Card
                               key={application.id}
-                              className={`border-0 shadow-sm hover:shadow-md transition-all duration-200 border-l-4 ${
-                                isAccepted ? "border-l-green-500" : "border-l-red-500"
-                              }`}
+                              className={`border-0 shadow-sm hover:shadow-md transition-all duration-200 border-l-4 ${isAccepted ? "border-l-green-500" : "border-l-red-500"
+                                }`}
                             >
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-4 flex-1">
                                     <div
-                                      className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                                        isAccepted ? "bg-green-100" : "bg-red-100"
-                                      }`}
+                                      className={`w-12 h-12 rounded-lg flex items-center justify-center ${isAccepted ? "bg-green-100" : "bg-red-100"
+                                        }`}
                                     >
                                       {isAccepted ? (
                                         <Award className="w-6 h-6 text-green-600" />
@@ -2591,9 +2639,8 @@ export default function DashboardPage() {
 
                                   <div className="flex items-center space-x-2">
                                     <span
-                                      className={`text-xs px-2 py-1 rounded-full ${
-                                        isAccepted ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                                      }`}
+                                      className={`text-xs px-2 py-1 rounded-full ${isAccepted ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                        }`}
                                     >
                                       {isAccepted ? "Accepted" : "Rejected"}
                                     </span>
@@ -2688,26 +2735,24 @@ export default function DashboardPage() {
                       >
                         <div className="flex items-center space-x-4">
                           <div
-                            className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                              document.status === "verified"
-                                ? "bg-green-100"
-                                : document.status === "pending"
-                                  ? "bg-yellow-100"
-                                  : document.status === "rejected"
-                                    ? "bg-red-100"
-                                    : "bg-blue-100"
-                            }`}
+                            className={`w-12 h-12 rounded-lg flex items-center justify-center ${document.status === "verified"
+                              ? "bg-green-100"
+                              : document.status === "pending"
+                                ? "bg-yellow-100"
+                                : document.status === "rejected"
+                                  ? "bg-red-100"
+                                  : "bg-blue-100"
+                              }`}
                           >
                             <IconComponent
-                              className={`w-6 h-6 ${
-                                document.status === "verified"
-                                  ? "text-green-600"
-                                  : document.status === "pending"
-                                    ? "text-yellow-600"
-                                    : document.status === "rejected"
-                                      ? "text-red-600"
-                                      : "text-blue-600"
-                              }`}
+                              className={`w-6 h-6 ${document.status === "verified"
+                                ? "text-green-600"
+                                : document.status === "pending"
+                                  ? "text-yellow-600"
+                                  : document.status === "rejected"
+                                    ? "text-red-600"
+                                    : "text-blue-600"
+                                }`}
                             />
                           </div>
                           <div className="flex-1">
@@ -2715,15 +2760,14 @@ export default function DashboardPage() {
                             <p className="text-sm text-gray-600">{document.category}</p>
                             <div className="flex items-center space-x-4 mt-2">
                               <span
-                                className={`text-xs px-2 py-1 rounded-full ${
-                                  document.status === "verified"
-                                    ? "bg-green-100 text-green-800"
-                                    : document.status === "pending"
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : document.status === "rejected"
-                                        ? "bg-red-100 text-red-800"
-                                        : "bg-blue-100 text-blue-800"
-                                }`}
+                                className={`text-xs px-2 py-1 rounded-full ${document.status === "verified"
+                                  ? "bg-green-100 text-green-800"
+                                  : document.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : document.status === "rejected"
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-blue-100 text-blue-800"
+                                  }`}
                               >
                                 {document.status.charAt(0).toUpperCase() + document.status.slice(1)}
                               </span>
@@ -2855,11 +2899,10 @@ export default function DashboardPage() {
                     <button
                       key={subtab.id}
                       onClick={() => handleTabChange("offers", subtab.id)}
-                      className={`flex-1 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-                        activeSubTab === subtab.id || (activeSubTab === "" && subtab.id === "all-offers")
-                          ? "bg-blue-600 text-white shadow-md"
-                          : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-                      }`}
+                      className={`flex-1 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${activeSubTab === subtab.id || (activeSubTab === "" && subtab.id === "all-offers")
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                        }`}
                     >
                       {subtab.label}
                     </button>
@@ -2919,13 +2962,12 @@ export default function DashboardPage() {
                               </div>
                             </div>
                             <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                offer.status === "pending"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : offer.status === "accepted"
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-gray-100 text-gray-800"
-                              }`}
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${offer.status === "pending"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : offer.status === "accepted"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-gray-100 text-gray-800"
+                                }`}
                             >
                               {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
                             </span>
@@ -3236,20 +3278,18 @@ export default function DashboardPage() {
                   <button
                     key={filter.id}
                     onClick={() => setActiveSubTab(filter.id)}
-                    className={`flex-shrink-0 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      activeSubTab === filter.id || (activeSubTab === "" && filter.id === "all")
-                        ? "bg-blue-600 text-white shadow-md"
-                        : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-                    }`}
+                    className={`flex-shrink-0 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${activeSubTab === filter.id || (activeSubTab === "" && filter.id === "all")
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                      }`}
                   >
                     {filter.label}
                     {filter.count > 0 && (
                       <span
-                        className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
-                          activeSubTab === filter.id || (activeSubTab === "" && filter.id === "all")
-                            ? "bg-white bg-opacity-20 text-white"
-                            : "bg-blue-100 text-blue-600"
-                        }`}
+                        className={`ml-2 px-2 py-0.5 text-xs rounded-full ${activeSubTab === filter.id || (activeSubTab === "" && filter.id === "all")
+                          ? "bg-white bg-opacity-20 text-white"
+                          : "bg-blue-100 text-blue-600"
+                          }`}
                       >
                         {filter.count}
                       </span>
@@ -3367,24 +3407,22 @@ export default function DashboardPage() {
                                   <div className="text-xs text-gray-500 mb-1">Due: {dueDate.toLocaleDateString()}</div>
                                   <div className="flex items-center space-x-2">
                                     <span
-                                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        task.priority === "High"
-                                          ? "bg-red-100 text-red-800"
-                                          : task.priority === "Medium"
-                                            ? "bg-yellow-100 text-yellow-800"
-                                            : "bg-blue-100 text-blue-800"
-                                      }`}
+                                      className={`px-2 py-1 rounded-full text-xs font-medium ${task.priority === "High"
+                                        ? "bg-red-100 text-red-800"
+                                        : task.priority === "Medium"
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : "bg-blue-100 text-blue-800"
+                                        }`}
                                     >
                                       {task.priority}
                                     </span>
                                     <span
-                                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        task.status === "completed"
-                                          ? "bg-green-100 text-green-800"
-                                          : isOverdue
-                                            ? "bg-red-100 text-red-800"
-                                            : "bg-gray-100 text-gray-800"
-                                      }`}
+                                      className={`px-2 py-1 rounded-full text-xs font-medium ${task.status === "completed"
+                                        ? "bg-green-100 text-green-800"
+                                        : isOverdue
+                                          ? "bg-red-100 text-red-800"
+                                          : "bg-gray-100 text-gray-800"
+                                        }`}
                                     >
                                       {task.status === "completed" ? "Completed" : isOverdue ? "Overdue" : "Pending"}
                                     </span>
@@ -3499,9 +3537,8 @@ export default function DashboardPage() {
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar */}
         <div
-          className={`fixed inset-y-0 left-0 z-40 w-64 bg-blue-600 shadow-xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+          className={`fixed inset-y-0 left-0 z-40 w-64 bg-blue-600 shadow-xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
           style={{ top: "64px", height: "calc(100vh - 64px)" }}
         >
           <div className="flex flex-col h-full">
@@ -3528,11 +3565,10 @@ export default function DashboardPage() {
                   <div key={item.id}>
                     <Button
                       variant={activeTab === item.id ? "default" : "ghost"}
-                      className={`w-full justify-start text-left ${
-                        activeTab === item.id
-                          ? "bg-blue-700 text-white hover:bg-blue-800"
-                          : "hover:bg-blue-700 text-white"
-                      }`}
+                      className={`w-full justify-start text-left ${activeTab === item.id
+                        ? "bg-blue-700 text-white hover:bg-blue-800"
+                        : "hover:bg-blue-700 text-white"
+                        }`}
                       onClick={() => {
                         if (item.id === "community" && item.subtabs.length === 0) {
                           router.push("/student-community")
@@ -3611,9 +3647,8 @@ export default function DashboardPage() {
                     className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-xs p-3 rounded-lg ${
-                        message.sender === "user" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800"
-                      }`}
+                      className={`max-w-xs p-3 rounded-lg ${message.sender === "user" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800"
+                        }`}
                     >
                       <p className="text-sm">{message.text}</p>
                       {message.actions && (

@@ -1,4 +1,8 @@
 "use client"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
+import { UnauthorizedAccess } from "@/components/unauthorized-access"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,10 +18,69 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  LogOut,
+  Bell,
 } from "lucide-react"
 import Link from "next/link"
 
 export default function SubAgentDashboard() {
+  const router = useRouter()
+  const { user, loading: authLoading, logout } = useAuth()
+  const [hasUnauthorizedAccess, setHasUnauthorizedAccess] = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    router.push("/login")
+  }
+
+  useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return
+
+    // Check authentication
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+    // Check if user has SUBAGENT role
+    if (user.role !== "SUBAGENT") {
+      setHasUnauthorizedAccess(true)
+      return
+    }
+
+    setHasUnauthorizedAccess(false)
+  }, [router, user, authLoading])
+
+  // Show loading while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  // Show unauthorized access page if user doesn't have subagent role
+  if (hasUnauthorizedAccess) {
+    return (
+      <UnauthorizedAccess
+        message="Sub-Agent Access Required"
+        allowedRoles={["Sub-Agent"]}
+        userRole={user.role}
+      />
+    )
+  }
+
   const stats = [
     {
       title: "Total Students",
@@ -93,7 +156,7 @@ export default function SubAgentDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -102,18 +165,32 @@ export default function SubAgentDashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Sub-Agent Dashboard</h1>
-                <p className="text-sm text-gray-600">Welcome back, Agent!</p>
+                <p className="text-sm text-gray-600">Welcome back, {user?.name || "Agent"}!</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
+              <Bell className="w-5 h-5 text-gray-400 cursor-pointer hover:text-gray-600" />
               <Link href="/subagent/students">
                 <Button variant="outline" size="sm">
                   <UserPlus className="w-4 h-4 mr-2" />
                   Add Student
                 </Button>
               </Link>
-              <Link href="/login">
-                <Button variant="ghost" size="sm">
+              <div className="flex items-center space-x-3 border-l pl-4">
+                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-semibold">{user?.name?.charAt(0) || "A"}</span>
+                </div>
+                <div className="text-left hidden md:block">
+                  <p className="text-sm font-medium text-gray-900">{user?.name || "Agent"}</p>
+                  <p className="text-xs text-gray-500 capitalize">{user?.role || "Sub-Agent"}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>
               </Link>

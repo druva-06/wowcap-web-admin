@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect, Suspense } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { UnauthorizedAccess } from "@/components/unauthorized-access"
 import { Button } from "@/components/ui/button"
 import { Home, Users, GraduationCap, FileText, Building2, Megaphone, DollarSign, UserCog, Laptop, BarChart3, Settings, Menu, X, ChevronRight, LogOut, Search, UserCheck, ChevronDown, Phone, MessageSquare } from 'lucide-react'
 import Link from "next/link"
@@ -27,20 +28,33 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const [financeExpanded, setFinanceExpanded] = useState(false)
   const [hrExpanded, setHrExpanded] = useState(false)
   const [communityExpanded, setCommunityExpanded] = useState(false)
+  const [hasUnauthorizedAccess, setHasUnauthorizedAccess] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
-  const { user, logout, isAdmin, isManager, isCounselor } = useAuth()
+  const { user, loading: authLoading, logout, isAdmin, isManager, isCounselor } = useAuth()
 
   const isLoginPage = pathname === "/admin/login"
 
   useEffect(() => {
     if (isLoginPage) return
 
+    // Wait for auth to finish loading
+    if (authLoading) return
+
     if (!user) {
       router.push("/admin/login")
+      return
     }
-  }, [router, isLoginPage, user])
+
+    // Check if user has admin access (admin, manager, counselor, or SUPER_ADMIN)
+    const allowedRoles = ["admin", "manager", "counselor", "SUPER_ADMIN"]
+    if (!allowedRoles.includes(user.role)) {
+      setHasUnauthorizedAccess(true)
+    } else {
+      setHasUnauthorizedAccess(false)
+    }
+  }, [router, isLoginPage, user, authLoading])
 
   useEffect(() => {
     if (pathname.startsWith("/admin/partners")) {
@@ -153,8 +167,33 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     return <>{children}</>
   }
 
+  // Show loading while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (!user) {
     return null
+  }
+
+  // Show unauthorized access page if user doesn't have admin role
+  if (hasUnauthorizedAccess) {
+    return (
+      <UnauthorizedAccess
+        message="Admin Access Required"
+        allowedRoles={["Admin", "Manager", "Counselor"]}
+        userRole={user.role}
+      />
+    )
   }
 
   return (
@@ -164,9 +203,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       <div
-        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-blue-600 via-blue-700 to-blue-800 text-white transform transition-transform duration-300 ease-in-out z-50 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 shadow-2xl`}
+        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-blue-600 via-blue-700 to-blue-800 text-white transform transition-transform duration-300 ease-in-out z-50 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } lg:translate-x-0 shadow-2xl`}
       >
         <div className="flex items-center justify-between p-6 border-b border-blue-500/30">
           <Link href="/admin/dashboard" className="flex items-center space-x-3">
@@ -223,17 +261,16 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                             ? () => setHrExpanded(!hrExpanded)
                             : item.id === "community"
                               ? () => setCommunityExpanded(!communityExpanded)
-                              : () => {}
+                              : () => { }
 
                 return (
                   <li key={item.id}>
                     <button
                       onClick={toggleExpanded}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${
-                        isActive
-                          ? "bg-white text-blue-600 shadow-lg font-semibold"
-                          : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
-                      }`}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${isActive
+                        ? "bg-white text-blue-600 shadow-lg font-semibold"
+                        : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
+                        }`}
                     >
                       <div className="flex items-center space-x-3">
                         <Icon className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-blue-200"}`} />
@@ -250,11 +287,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                               <Link
                                 href={subItem.href}
                                 onClick={() => setSidebarOpen(false)}
-                                className={`flex items-center space-x-3 px-4 py-2 rounded-lg transition-all text-sm ${
-                                  isSubActive
-                                    ? "bg-blue-500/30 text-white font-medium"
-                                    : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
-                                }`}
+                                className={`flex items-center space-x-3 px-4 py-2 rounded-lg transition-all text-sm ${isSubActive
+                                  ? "bg-blue-500/30 text-white font-medium"
+                                  : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
+                                  }`}
                               >
                                 <span>{subItem.label}</span>
                               </Link>
@@ -272,11 +308,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   <Link
                     href={item.href}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
-                      isActive
-                        ? "bg-white text-blue-600 shadow-lg font-semibold"
-                        : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
-                    }`}
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${isActive
+                      ? "bg-white text-blue-600 shadow-lg font-semibold"
+                      : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
+                      }`}
                   >
                     <Icon className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-blue-200"}`} />
                     <span className="font-medium">{item.label}</span>

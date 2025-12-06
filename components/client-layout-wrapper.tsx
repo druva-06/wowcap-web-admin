@@ -10,11 +10,14 @@ import { AuthProvider } from "@/lib/auth-context"
 export default function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAdminRoute = pathname?.startsWith("/admin")
+  const isCollegeRoute = pathname?.startsWith("/college")
+  const isSubagentRoute = pathname?.startsWith("/subagent")
+  const isDashboardRoute = isAdminRoute || isCollegeRoute || isSubagentRoute
 
   return (
     <AuthProvider>
-      {isAdminRoute ? (
-        // Admin routes: no header, footer, or chatbot
+      {isDashboardRoute ? (
+        // Dashboard routes (admin, college, subagent): no header, footer, or chatbot
         <>{children}</>
       ) : (
         // Regular routes: include header, footer, and chatbot
