@@ -61,20 +61,28 @@
     --radius: 0.5rem;
 
     /* Sidebar - Blue Gradient (600 to 800) */
-    --sidebar-from: 221 83% 53%; /* blue-600 */
-    --sidebar-to: 217 91% 35%; /* blue-800 */
+    --sidebar-from: 221 83% 53%;
+    /* blue-600 */
+    --sidebar-to: 217 91% 35%;
+    /* blue-800 */
     --sidebar-foreground: 0 0% 100%;
     --sidebar-active: 0 0% 100%;
     --sidebar-active-foreground: 221 83% 53%;
     --sidebar-hover: 0 0% 100% / 0.1;
 
     /* Status Colors */
-    --status-active: 142 71% 45%; /* green-500 */
-    --status-inactive: 0 84% 60%; /* red-500 */
-    --status-pending: 215 16% 47%; /* gray-600 */
-    --status-hot: 25 95% 53%; /* orange-500 */
-    --status-warm: 45 93% 47%; /* yellow-500 */
-    --status-cold: 217 91% 60%; /* blue-500 */
+    --status-active: 142 71% 45%;
+    /* green-500 */
+    --status-inactive: 0 84% 60%;
+    /* red-500 */
+    --status-pending: 215 16% 47%;
+    /* gray-600 */
+    --status-hot: 25 95% 53%;
+    /* orange-500 */
+    --status-warm: 45 93% 47%;
+    /* yellow-500 */
+    --status-cold: 217 91% 60%;
+    /* blue-500 */
   }
 
   .dark {
@@ -104,6 +112,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
@@ -111,6 +120,7 @@
 }
 
 @layer utilities {
+
   /* Sidebar Gradient */
   .sidebar-gradient {
     background: linear-gradient(180deg, hsl(var(--sidebar-from)), hsl(var(--sidebar-to)));
@@ -196,6 +206,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -206,26 +217,31 @@
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(0);
   }
 }
 
 @keyframes pulse-subtle {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.8;
   }
 }
 
 @keyframes bounce-subtle {
+
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-5px);
   }
@@ -235,6 +251,7 @@
   0% {
     background-position: -1000px 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
@@ -278,6 +295,17 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-400;
+}
+
+/* Shimmer Animation for Skeleton Loading */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* Mobile Responsive Table */

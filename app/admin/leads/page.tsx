@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Users, UserPlus, Zap, AlertCircle, TrendingUp, Clock, Calendar, Phone, Search, Download, Eye, Mail, MessageSquare, FileText, Filter, X, CheckCircle, Send, History, BarChart3, Merge, Plus, QrCode, FolderKanban, UserCheck, Activity, CheckCircle2, ArrowRightLeft, PlayCircle, Star } from 'lucide-react'
 import { useAuth } from "@/lib/auth-context"
 import { mockData } from "@/lib/mock-data"
@@ -33,13 +34,17 @@ interface Lead {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone?: string; // camelCase for compatibility
+  phone_number?: string; // snake_case from backend
   status: string;
   score: number;
-  source: string;
+  source?: string;
   assignedTo?: string;
-  createdAt: string;
+  assigned_to_name?: string; // snake_case from backend
+  createdAt?: string; // camelCase for compatibility
+  created_at?: string; // snake_case from backend
   tags?: string[];
+  is_duplicate?: boolean; // snake_case from backend
   engagementLevel?: number;
   urgency?: string;
   timeline?: string;
@@ -99,7 +104,7 @@ export default function AdminLeads() {
   const [activeTab, setActiveTab] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCampaignFilter, setSelectedCampaignFilter] = useState("all")
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(0)
   const [pageSize, setPageSize] = useState(10)
   const [totalPages, setTotalPages] = useState(0)
@@ -126,7 +131,7 @@ export default function AdminLeads() {
 
   // Existing states
   const [campaigns, setCampaigns] = useState(mockData.campaigns)
-  const [leads, setLeads] = useState(mockData.leads)
+  const [leads, setLeads] = useState<Lead[]>([])
   const [allocations, setAllocations] = useState(mockData.allocations)
   const [callLogs, setCallLogs] = useState(mockData.callLogs)
 
@@ -191,11 +196,6 @@ export default function AdminLeads() {
   const [selectedCampaign, setSelectedCampaign] = useState("")
   const [selectedCounselor, setSelectedCounselor] = useState("")
   const [leadsToAllocate, setLeadsToAllocate] = useState("")
-
-  useEffect(() => {
-    // Fetch leads from backend on mount
-    fetchLeads()
-  }, [])
 
   // Fetch leads from backend API
   const fetchLeads = async () => {
@@ -405,7 +405,7 @@ export default function AdminLeads() {
     const csvContent = [
       ["Name", "Email", "Phone", "Status", "Score", "Assigned To", "Created At"].join(","),
       ...filteredLeads.map((lead) =>
-        [lead.name, lead.email, lead.phone, lead.status, lead.score, lead.assignedTo, lead.createdAt].join(","),
+        [lead.name, lead.email, lead.phone_number || lead.phone, lead.status, lead.score, lead.assigned_to_name || lead.assignedTo, lead.created_at || lead.createdAt].join(","),
       ),
     ].join("\n")
 
@@ -868,9 +868,9 @@ export default function AdminLeads() {
   const handleCall = (lead: any) => {
     toast({
       title: "Initiating Call",
-      description: `Calling ${lead.phone}`,
+      description: `Calling ${lead.phone_number || lead.phone}`,
     })
-    window.location.href = `tel:${lead.phone}`
+    window.location.href = `tel:${lead.phone_number || lead.phone}`
   }
 
   const handleEmail = (lead: any) => {
@@ -1404,7 +1404,7 @@ export default function AdminLeads() {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <p className="text-sm text-gray-900">{lead.phone}</p>
+                            <p className="text-sm text-gray-900">{lead.phone_number || lead.phone}</p>
                           </td>
                           <td className="px-4 py-3">
                             <Badge
@@ -1514,14 +1514,61 @@ export default function AdminLeads() {
                       )
                     })}
                     {isLoading && (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                            <span className="text-gray-600">Loading leads...</span>
-                          </div>
-                        </td>
-                      </tr>
+                      // Skeleton loading rows with staggered animation
+                      Array.from({ length: pageSize }).map((_, index) => (
+                        <tr
+                          key={`skeleton-${index}`}
+                          className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                          style={{ animationDelay: `${index * 50}ms` }}
+                        >
+                          <td className="px-4 py-4">
+                            <Skeleton className="h-4 w-4 rounded" />
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+                              <div className="space-y-2 flex-1">
+                                <Skeleton className="h-4 w-36" />
+                                <Skeleton className="h-3 w-52" />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2">
+                              <Skeleton className="h-4 w-4 rounded-full" />
+                              <Skeleton className="h-4 w-28" />
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <Skeleton className="h-6 w-20 rounded-full" />
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2">
+                              <Skeleton className="h-6 w-6 rounded-full" />
+                              <Skeleton className="h-4 w-24" />
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-1">
+                              <Skeleton className="h-4 w-8" />
+                              <Skeleton className="h-3 w-3 rounded-full" />
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex gap-1.5">
+                              <Skeleton className="h-5 w-14 rounded-full" />
+                              <Skeleton className="h-5 w-16 rounded-full" />
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex gap-2">
+                              <Skeleton className="h-8 w-8 rounded-md" />
+                              <Skeleton className="h-8 w-8 rounded-md" />
+                              <Skeleton className="h-8 w-8 rounded-md" />
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     )}
                     {!isLoading && filteredLeads.length === 0 && (
                       <tr>

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -579,12 +580,108 @@ export default function DashboardPage() {
   // Show loading while authentication is being checked
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-4 w-80" />
           </div>
-          <p className="text-gray-600">Loading dashboard...</p>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card
+                key={i}
+                className="border-0 shadow-md hover:shadow-lg transition-shadow bg-white/80 backdrop-blur"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-8 w-20" />
+                    </div>
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3 w-12 rounded-full" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Applications Section */}
+            <div className="lg:col-span-2">
+              <Card className="border-0 shadow-md bg-white/80 backdrop-blur">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-48" />
+                      <Skeleton className="h-3 w-64" />
+                    </div>
+                    <Skeleton className="h-9 w-32 rounded-lg" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-4 p-4 rounded-lg hover:bg-gray-50/50 transition-colors border border-gray-100"
+                        style={{ animationDelay: `${i * 80}ms` }}
+                      >
+                        <Skeleton className="h-12 w-12 rounded-lg flex-shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-48" />
+                          <Skeleton className="h-3 w-32" />
+                        </div>
+                        <Skeleton className="h-7 w-24 rounded-full" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              <Card className="border-0 shadow-md bg-white/80 backdrop-blur">
+                <CardHeader className="pb-4">
+                  <Skeleton className="h-6 w-32" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="p-3 rounded-lg bg-gradient-to-r from-gray-50 to-transparent"
+                        style={{ animationDelay: `${i * 60}ms` }}
+                      >
+                        <Skeleton className="h-4 w-full mb-2" />
+                        <Skeleton className="h-2 w-full rounded-full" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-0 shadow-md bg-white/80 backdrop-blur">
+                <CardHeader className="pb-4">
+                  <Skeleton className="h-6 w-36" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-48 w-full rounded-lg" />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     )

@@ -6,6 +6,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { UnauthorizedAccess } from "@/components/unauthorized-access"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Home, Users, GraduationCap, FileText, Building2, Megaphone, DollarSign, UserCog, Laptop, BarChart3, Settings, Menu, X, ChevronRight, LogOut, Search, UserCheck, ChevronDown, Phone, MessageSquare } from 'lucide-react'
 import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
@@ -173,12 +174,89 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   // Show loading while authentication is being checked
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header Skeleton with Logo */}
+          <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-lg" />
+              <Skeleton className="h-8 w-48" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <Skeleton className="h-10 w-32 rounded-lg" />
+            </div>
           </div>
-          <p className="text-gray-600">Loading...</p>
+
+          {/* Stats Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                </div>
+                <Skeleton className="h-9 w-20 mb-3" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-3 w-12 rounded-full" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Main Content Area */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <Skeleton className="h-7 w-48" />
+                  <Skeleton className="h-9 w-28 rounded-lg" />
+                </div>
+                <div className="space-y-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors"
+                      style={{ animationDelay: `${i * 80}ms` }}
+                    >
+                      <Skeleton className="h-12 w-12 rounded-lg flex-shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                      <Skeleton className="h-8 w-20 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Sidebar */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+                <Skeleton className="h-6 w-32 mb-4" />
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-6 w-12 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+                <Skeleton className="h-6 w-36 mb-4" />
+                <Skeleton className="h-40 w-full rounded-lg" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     )
