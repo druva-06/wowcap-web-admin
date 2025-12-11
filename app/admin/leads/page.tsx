@@ -13,10 +13,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Users, UserPlus, Zap, AlertCircle, TrendingUp, Clock, Calendar, Phone, Search, Download, Eye, Mail, MessageSquare, FileText, Filter, X, CheckCircle, Send, History, BarChart3, Merge, Plus, QrCode, FolderKanban, UserCheck, Activity, CheckCircle2, ArrowRightLeft, PlayCircle } from 'lucide-react'
+import { Users, UserPlus, Zap, AlertCircle, TrendingUp, Clock, Calendar, Phone, Search, Download, Eye, Mail, MessageSquare, FileText, Filter, X, CheckCircle, Send, History, BarChart3, Merge, Plus, QrCode, FolderKanban, UserCheck, Activity, CheckCircle2, ArrowRightLeft, PlayCircle, Star } from 'lucide-react'
 import { useAuth } from "@/lib/auth-context"
 import { mockData } from "@/lib/mock-data"
 import { toast } from "@/hooks/use-toast"
+import { api } from "@/lib/api-client"
 // Assuming apiUtils and generateQRCode are in a separate file, e.g., lib/api.ts
 import { apiUtils, generateQRCode } from "@/lib/apiUtils" // Placeholder, adjust path as needed
 
@@ -98,6 +99,11 @@ export default function AdminLeads() {
   const [activeTab, setActiveTab] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCampaignFilter, setSelectedCampaignFilter] = useState("all")
+  const [isLoading, setIsLoading] = useState(false)
+  const [currentPage, setCurrentPage] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
 
   const [selectedLeads, setSelectedLeads] = useState<string[]>([])
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
@@ -159,7 +165,7 @@ export default function AdminLeads() {
 
   const [qualificationDialogOpen, setQualificationDialogOpen] = useState(false)
   const [selectedVerticals, setSelectedVerticals] = useState<string[]>([])
-  
+
   const [selectedCountryOptions, setSelectedCountryOptions] = useState<string[]>([])
   const [selectedCollegeOptions, setSelectedCollegeOptions] = useState<string[]>([])
   const [selectedProgramOptions, setSelectedProgramOptions] = useState<string[]>([])
@@ -187,136 +193,131 @@ export default function AdminLeads() {
   const [leadsToAllocate, setLeadsToAllocate] = useState("")
 
   useEffect(() => {
-    // Load data from localStorage on mount
-    const savedLeads = localStorage.getItem('admin_leads')
-    if (savedLeads) {
-      try {
-        const parsedLeads = JSON.parse(savedLeads)
-        setLeads(parsedLeads)
-      } catch (error) {
-        console.error('[v0] Error loading leads from localStorage:', error)
-      }
-    }
-
-    const savedCampaigns = localStorage.getItem('admin_campaigns')
-    if (savedCampaigns) {
-      setCampaigns(JSON.parse(savedCampaigns))
-    }
-    const savedAllocations = localStorage.getItem('admin_allocations')
-    if (savedAllocations) {
-      setAllocations(JSON.parse(savedAllocations))
-    }
-    const savedCallLogs = localStorage.getItem('admin_callLogs')
-    if (savedCallLogs) {
-      setCallLogs(JSON.parse(savedCallLogs))
-    }
-    const savedImportHistory = localStorage.getItem('admin_importHistory')
-    if (savedImportHistory) {
-      setImportHistory(JSON.parse(savedImportHistory))
-    }
-    const savedLeadNotes = localStorage.getItem('admin_leadNotes')
-    if (savedLeadNotes) {
-      setLeadNotes(JSON.parse(savedLeadNotes))
-    }
-    const savedDuplicateLeads = localStorage.getItem('admin_duplicateLeads')
-    if (savedDuplicateLeads) {
-      setDuplicateLeads(JSON.parse(savedDuplicateLeads))
-    }
-    const savedLeadOwnerships = localStorage.getItem('admin_leadOwnerships')
-    if (savedLeadOwnerships) {
-      setLeadOwnerships(new Map(JSON.parse(savedLeadOwnerships)))
-    }
-    const savedLeadAccessControls = localStorage.getItem('admin_leadAccessControls')
-    if (savedLeadAccessControls) {
-      setLeadAccessControls(new Map(JSON.parse(savedLeadAccessControls)))
-    }
-    const savedLeadTransferHistories = localStorage.getItem('admin_leadTransferHistories')
-    if (savedLeadTransferHistories) {
-      setLeadTransferHistories(new Map(JSON.parse(savedLeadTransferHistories)))
-    }
-
+    // Fetch leads from backend on mount
+    fetchLeads()
   }, [])
 
-  useEffect(() => {
-    // Save leads to localStorage whenever they change
-    if (leads.length > 0) {
-      localStorage.setItem('admin_leads', JSON.stringify(leads))
+  // Fetch leads from backend API
+  const fetchLeads = async () => {
+    setIsLoading(true)
+    try {
+      // Build query parameters
+      const params = new URLSearchParams()
+
+      if (searchTerm) params.append('search', searchTerm)
+      if (selectedCampaignFilter && selectedCampaignFilter !== 'all') {
+        params.append('campaign', selectedCampaignFilter)
+      }
+      if (dateFrom) params.append('dateFrom', dateFrom)
+      if (dateTo) params.append('dateTo', dateTo)
+      if (scoreFrom) params.append('scoreFrom', scoreFrom)
+      if (scoreTo) params.append('scoreTo', scoreTo)
+
+      // Add status filters based on active tab
+      if (activeTab !== 'all') {
+        let statusValue = ''
+        switch (activeTab) {
+          case 'hot': statusValue = 'HOT'; break
+          case 'immediate': statusValue = 'IMMEDIATE_HOT'; break
+          case 'warm': statusValue = 'WARM'; break
+          case 'cold': statusValue = 'COLD'; break
+          case 'feature': statusValue = 'FEATURE_LEAD'; break
+          case 'contacted': statusValue = 'CONTACTED'; break
+        }
+        if (statusValue) params.append('status', statusValue)
+      }
+
+      // Add selected statuses from advanced filters
+      selectedStatuses.forEach(status => params.append('status', status))
+
+      // Add tags
+      selectedTags.forEach(tag => params.append('tags', tag))
+
+      // Add pagination
+      params.append('page', currentPage.toString())
+      params.append('size', pageSize.toString())
+      params.append('sortBy', 'createdAt')
+      params.append('sortDirection', 'DESC')
+
+      const response = await api.get(`/api/leads?${params.toString()}`)
+
+      console.log('API Response:', response)
+
+      if (response.success && response.data) {
+        const pageData = response.data
+        console.log('Page Data:', pageData)
+        console.log('Leads:', pageData.leads)
+
+        // Backend returns 'leads' not 'content'
+        setLeads(pageData.leads || [])
+        setTotalPages(pageData.total_pages || pageData.totalPages || 0)
+        setTotalElements(pageData.total_elements || pageData.totalElements || 0)
+      } else {
+        setLeads([])
+        toast({
+          title: "Error",
+          description: response.message || "Failed to load leads",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching leads:', error)
+      setLeads([])
+      toast({
+        title: "Error",
+        description: "Failed to fetch leads from server. Please check your connection.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
-  }, [leads])
+  }
 
+  // Refetch leads when filters change
   useEffect(() => {
-    localStorage.setItem('admin_campaigns', JSON.stringify(campaigns))
-  }, [campaigns])
+    const timeoutId = setTimeout(() => {
+      fetchLeads()
+    }, 500) // Debounce for 500ms
 
-  useEffect(() => {
-    localStorage.setItem('admin_allocations', JSON.stringify(allocations))
-  }, [allocations])
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, selectedCampaignFilter, activeTab, dateFrom, dateTo, scoreFrom, scoreTo, selectedStatuses, selectedTags, currentPage, pageSize])
 
-  useEffect(() => {
-    localStorage.setItem('admin_callLogs', JSON.stringify(callLogs))
-  }, [callLogs])
-
-  useEffect(() => {
-    localStorage.setItem('admin_importHistory', JSON.stringify(importHistory))
-  }, [importHistory])
-
-  useEffect(() => {
-    localStorage.setItem('admin_leadNotes', JSON.stringify(leadNotes))
-  }, [leadNotes])
-
-  useEffect(() => {
-    localStorage.setItem('admin_duplicateLeads', JSON.stringify(duplicateLeads))
-  }, [duplicateLeads])
-
-  useEffect(() => {
-    localStorage.setItem('admin_leadOwnerships', JSON.stringify(Array.from(leadOwnerships.entries())))
-  }, [leadOwnerships])
-
-  useEffect(() => {
-    localStorage.setItem('admin_leadAccessControls', JSON.stringify(Array.from(leadAccessControls.entries())))
-  }, [leadAccessControls])
-
-  useEffect(() => {
-    localStorage.setItem('admin_leadTransferHistories', JSON.stringify(Array.from(leadTransferHistories.entries())))
-  }, [leadTransferHistories])
+  // No localStorage persistence - using API as single source of truth
 
 
   const tabs = [
     { id: "all", label: "All Leads", icon: Users, count: leads.length },
-    { id: "new", label: "New", icon: UserPlus, count: leads.filter((l) => l.status === "New").length },
     { id: "hot", label: "HOT", icon: Zap, count: leads.filter((l) => l.status === "HOT").length },
     {
       id: "immediate",
       label: "Immediate Hot",
       icon: AlertCircle,
-      count: leads.filter((l) => l.status === "Immediate Hot").length,
+      count: leads.filter((l) => l.status === "IMMEDIATE_HOT").length,
     },
-    { id: "warm", label: "Warm", icon: TrendingUp, count: leads.filter((l) => l.status === "Warm").length },
-    { id: "cold", label: "Cold", icon: Clock, count: leads.filter((l) => l.status === "Cold").length },
+    { id: "warm", label: "Warm", icon: TrendingUp, count: leads.filter((l) => l.status === "WARM").length },
+    { id: "cold", label: "Cold", icon: Clock, count: leads.filter((l) => l.status === "COLD").length },
     {
-      id: "future",
-      label: "Future Lead",
-      icon: Calendar,
-      count: leads.filter((l) => l.status === "Future Lead").length,
+      id: "feature",
+      label: "Feature Lead",
+      icon: Star,
+      count: leads.filter((l) => l.status === "FEATURE_LEAD").length,
     },
-    { id: "contacted", label: "Contacted", icon: Phone, count: leads.filter((l) => l.status === "Contacted").length },
+    { id: "contacted", label: "Contacted", icon: Phone, count: leads.filter((l) => l.status === "CONTACTED").length },
   ]
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "HOT":
         return "bg-red-100 text-red-700 border-red-300"
-      case "Immediate Hot":
+      case "IMMEDIATE_HOT":
         return "bg-orange-100 text-orange-700 border-orange-300"
-      case "Warm":
+      case "WARM":
         return "bg-yellow-100 text-yellow-700 border-yellow-300"
-      case "Cold":
+      case "COLD":
         return "bg-blue-100 text-blue-700 border-blue-300"
-      case "Future Lead":
+      case "FEATURE_LEAD":
         return "bg-purple-100 text-purple-700 border-purple-300"
-      case "New":
-        return "bg-cyan-100 text-cyan-700 border-cyan-200"
-      case "Contacted":
+      case "CONTACTED":
         return "bg-green-100 text-green-700 border-green-200"
       case "Qualified":
         return "bg-emerald-100 text-emerald-700 border-emerald-200"
@@ -362,63 +363,9 @@ export default function AdminLeads() {
       if (!isAssignedToUser) return false
     }
 
-    const matchesSearch =
-      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.phone.includes(searchTerm) ||
-      (lead.college && lead.college.toLowerCase().includes(searchTerm.toLowerCase())) // Added check for college
-
-    let matchesTab = true
-    switch (activeTab) {
-      case "hot":
-        matchesTab = lead.status === "HOT"
-        break
-      case "immediate":
-        matchesTab = lead.status === "Immediate Hot"
-        break
-      case "warm":
-        matchesTab = lead.status === "Warm"
-        break
-      case "cold":
-        matchesTab = lead.status === "Cold"
-        break
-      case "future":
-        matchesTab = lead.status === "Future Lead"
-        break
-      case "new":
-        matchesTab = lead.status === "New"
-        break
-      case "contacted":
-        matchesTab = lead.status === "Contacted"
-        break
-      default:
-        matchesTab = true
-    }
-
-    const matchesCampaign = selectedCampaignFilter === "all" || lead.source === selectedCampaignFilter
-
-    // Advanced filters
-    const matchesDateRange =
-      (!dateFrom || new Date(lead.createdAt) >= new Date(dateFrom)) &&
-      (!dateTo || new Date(lead.createdAt) <= new Date(dateTo))
-
-    const matchesScoreRange =
-      (!scoreFrom || lead.score >= Number.parseInt(scoreFrom)) && (!scoreTo || lead.score <= Number.parseInt(scoreTo))
-
-    const matchesStatuses = selectedStatuses.length === 0 || selectedStatuses.includes(lead.status)
-
-    const matchesTags =
-      selectedTags.length === 0 || (lead.tags && lead.tags.some((tag: string) => selectedTags.includes(tag)))
-
-    return (
-      matchesSearch &&
-      matchesTab &&
-      matchesCampaign &&
-      matchesDateRange &&
-      matchesScoreRange &&
-      matchesStatuses &&
-      matchesTags
-    )
+    // All other filtering is now done by the backend API
+    // This client-side filter only handles role-based access control
+    return true
   })
 
   const calculateLeadScore = (lead: any) => {
@@ -636,10 +583,10 @@ export default function AdminLeads() {
     if (ownership && ownership.ownerId === currentUser.id) {
       return "owner"
     }
-    
+
     const accessList = leadAccessControls.get(leadId) || []
     const userAccess = accessList.find(access => access.userId === currentUser.id)
-    
+
     return userAccess?.accessLevel || "none"
   }
 
@@ -661,7 +608,7 @@ export default function AdminLeads() {
 
     const isQualifyingStatus = ["HOT", "Warm", "Immediate Hot", "Contacted", "Future Lead"].includes(newStatus)
     const leadQualification = selectedLead.qualification
-    
+
     if (isQualifyingStatus && !leadQualification) {
       const ownership: LeadOwnership = {
         ownerId: currentUser.id,
@@ -669,9 +616,9 @@ export default function AdminLeads() {
         assignedDate: new Date().toISOString(),
         assignedBy: "System (First Qualification)"
       }
-      
+
       setLeadOwnerships(prev => new Map(prev).set(selectedLead.id, ownership))
-      
+
       // Open qualification dialog
       setQualificationDialogOpen(true)
       setStatusDialogOpen(false)
@@ -834,7 +781,7 @@ export default function AdminLeads() {
       })
     }
   }
-  
+
   // Update Transfer Dialog with reason dropdown
   const handleTransfer = () => {
     if (!selectedLeadForAction || !transferTo || !transferReasonType) {
@@ -868,7 +815,7 @@ export default function AdminLeads() {
     setLeadOwnerships(prev => new Map(prev).set(selectedLeadForAction.id, newOwnership))
 
     const existingHistory = leadTransferHistories.get(selectedLeadForAction.id) || []
-    setLeadTransferHistories(prev => 
+    setLeadTransferHistories(prev =>
       new Map(prev).set(selectedLeadForAction.id, [...existingHistory, transferHistory])
     )
 
@@ -880,7 +827,7 @@ export default function AdminLeads() {
       grantedDate: new Date().toISOString(),
       grantedBy: "System (Transfer)"
     }
-    
+
     // Add new access for the transferred-to counselor if not already there
     if (!existingAccess.some(access => access.userId === transferTo)) {
       const transferredToAccess: LeadAccessControl = {
@@ -890,18 +837,18 @@ export default function AdminLeads() {
         grantedDate: new Date().toISOString(),
         grantedBy: "System (Transfer)"
       }
-      setLeadAccessControls(prev => 
+      setLeadAccessControls(prev =>
         new Map(prev).set(selectedLeadForAction.id, [...existingAccess, transferredToAccess])
       )
     } else {
-       // If the user already has access, ensure their level is owner if they are the new owner
-       setLeadAccessControls(prev => 
-         new Map(prev).set(selectedLeadForAction.id, 
-           (prev.get(selectedLeadForAction.id) || []).map(access => 
-             access.userId === transferTo ? {...access, accessLevel: "owner"} : access
-           )
-         )
-       )
+      // If the user already has access, ensure their level is owner if they are the new owner
+      setLeadAccessControls(prev =>
+        new Map(prev).set(selectedLeadForAction.id,
+          (prev.get(selectedLeadForAction.id) || []).map(access =>
+            access.userId === transferTo ? { ...access, accessLevel: "owner" } : access
+          )
+        )
+      )
     }
 
 
@@ -971,10 +918,10 @@ export default function AdminLeads() {
     conversionRate:
       allocations.reduce((sum, a) => sum + (a.leadsAllocated || 0), 0) > 0
         ? (
-            (allocations.reduce((sum, a) => sum + (a.leadsConverted || 0), 0) /
-              allocations.reduce((sum, a) => sum + (a.leadsAllocated || 0), 0)) *
-            100
-          ).toFixed(1)
+          (allocations.reduce((sum, a) => sum + (a.leadsConverted || 0), 0) /
+            allocations.reduce((sum, a) => sum + (a.leadsAllocated || 0), 0)) *
+          100
+        ).toFixed(1)
         : "0",
   }
 
@@ -1364,11 +1311,10 @@ export default function AdminLeads() {
                       <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-2 px-6 py-3 border-b-2 transition-all whitespace-nowrap ${
-                          isActive
-                            ? "border-blue-600 text-blue-600 bg-white"
-                            : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                        }`}
+                        className={`flex items-center gap-2 px-6 py-3 border-b-2 transition-all whitespace-nowrap ${isActive
+                          ? "border-blue-600 text-blue-600 bg-white"
+                          : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                          }`}
                       >
                         <Icon className="w-4 h-4" />
                         <span className="font-medium">{tab.label}</span>
@@ -1422,7 +1368,7 @@ export default function AdminLeads() {
                       const ownership = leadOwnerships.get(lead.id);
                       const accessLevel = getUserAccessLevel(lead.id)
                       const canEdit = canEditLead(lead.id)
-                      
+
                       return (
                         <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3">
@@ -1446,11 +1392,10 @@ export default function AdminLeads() {
                                 <p className="font-semibold text-gray-900 text-sm">{lead.name}</p>
                                 <p className="text-xs text-gray-500">{lead.email}</p>
                                 {accessLevel !== "none" && accessLevel !== "owner" && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className={`text-xs mt-1 ${
-                                      accessLevel === "editor" ? "border-blue-400 text-blue-700" : "border-gray-400 text-gray-700"
-                                    }`}
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-xs mt-1 ${accessLevel === "editor" ? "border-blue-400 text-blue-700" : "border-gray-400 text-gray-700"
+                                      }`}
                                   >
                                     {accessLevel === "editor" ? "Can Edit" : "View Only"}
                                   </Badge>
@@ -1568,9 +1513,96 @@ export default function AdminLeads() {
                         </tr>
                       )
                     })}
+                    {isLoading && (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <span className="text-gray-600">Loading leads...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {!isLoading && filteredLeads.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                          No leads found. Try adjusting your filters.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {!isLoading && totalElements > 0 && (
+                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm text-gray-700">
+                      Showing <span className="font-semibold">{currentPage * pageSize + 1}</span> to{" "}
+                      <span className="font-semibold">
+                        {Math.min((currentPage + 1) * pageSize, totalElements)}
+                      </span>{" "}
+                      of <span className="font-semibold">{totalElements}</span> leads
+                    </div>
+                    <Select
+                      value={pageSize.toString()}
+                      onValueChange={(value) => {
+                        setPageSize(Number(value))
+                        setCurrentPage(0)
+                      }}
+                    >
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 / page</SelectItem>
+                        <SelectItem value="25">25 / page</SelectItem>
+                        <SelectItem value="50">50 / page</SelectItem>
+                        <SelectItem value="100">100 / page</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(0)}
+                      disabled={currentPage === 0}
+                    >
+                      First
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 0}
+                    >
+                      Previous
+                    </Button>
+                    <div className="text-sm text-gray-700">
+                      Page <span className="font-semibold">{currentPage + 1}</span> of{" "}
+                      <span className="font-semibold">{totalPages}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage >= totalPages - 1}
+                    >
+                      Next
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages - 1)}
+                      disabled={currentPage >= totalPages - 1}
+                    >
+                      Last
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -2733,7 +2765,7 @@ export default function AdminLeads() {
                   <Label>Colleges</Label>
                   <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
                     {mockData.colleges
-                      .filter((college) => 
+                      .filter((college) =>
                         indiaMode === "both" || college.type === indiaMode || indiaMode === ""
                       )
                       .map((college) => (
@@ -2839,16 +2871,12 @@ export default function AdminLeads() {
                   <SelectValue placeholder="Select new status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="New">New</SelectItem>
                   <SelectItem value="HOT">HOT</SelectItem>
-                  <SelectItem value="Immediate Hot">Immediate Hot</SelectItem>
-                  <SelectItem value="Warm">Warm</SelectItem>
-                  <SelectItem value="Cold">Cold</SelectItem>
-                  <SelectItem value="Future Lead">Future Lead</SelectItem>
-                  <SelectItem value="Contacted">Contacted</SelectItem>
-                  <SelectItem value="Qualified">Qualified</SelectItem>
-                  <SelectItem value="Converted">Converted</SelectItem>
-                  <SelectItem value="Lost">Lost</SelectItem>
+                  <SelectItem value="IMMEDIATE_HOT">Immediate Hot</SelectItem>
+                  <SelectItem value="WARM">Warm</SelectItem>
+                  <SelectItem value="COLD">Cold</SelectItem>
+                  <SelectItem value="FEATURE_LEAD">Feature Lead</SelectItem>
+                  <SelectItem value="CONTACTED">Contacted</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -3036,7 +3064,7 @@ export default function AdminLeads() {
                 </p>
               </div>
             )}
-            
+
             <div>
               <Label>Transfer to</Label>
               <Select onValueChange={(value) => setTransferTo(value)} value={transferTo}>
@@ -3052,7 +3080,7 @@ export default function AdminLeads() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label>Reason Category</Label>
               <Select onValueChange={(value) => setTransferReasonType(value)} value={transferReasonType}>
@@ -3069,7 +3097,7 @@ export default function AdminLeads() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label>Additional Notes</Label>
               <Textarea
@@ -3080,7 +3108,7 @@ export default function AdminLeads() {
                 className="mt-1"
               />
             </div>
-            
+
             {selectedLeadForAction && leadTransferHistories.get(selectedLeadForAction.id)?.length > 0 && (
               <div className="border-t pt-3">
                 <Label className="text-xs text-gray-600">Transfer History</Label>
@@ -3104,9 +3132,9 @@ export default function AdminLeads() {
                 </div>
               </div>
             )}
-            
-            <Button 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
+
+            <Button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               onClick={handleTransfer}
               disabled={selectedLeadForAction && getUserAccessLevel(selectedLeadForAction.id) === "viewer"}
             >
