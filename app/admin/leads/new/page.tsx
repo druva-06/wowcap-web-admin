@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -29,15 +29,25 @@ import {
   ThermometerSun,
   Snowflake,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Search
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api-client"
+
+interface Counselor {
+  id: number
+  name: string
+  email: string
+  phone_number: string
+}
 
 export default function AddNewLeadPage() {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [counselors, setCounselors] = useState<Counselor[]>([])
+  const [counselorSearch, setCounselorSearch] = useState("")
   const totalSteps = 3
 
   // Form state
@@ -78,6 +88,32 @@ export default function AddNewLeadPage() {
     source: "",
     assignedTo: "",
     notes: "",
+  })
+
+  // Fetch counselors on component mount
+  useEffect(() => {
+    const fetchCounselors = async () => {
+      try {
+        const response = await api.get("/user/counselors")
+        if (response.success && response.data) {
+          setCounselors(response.data)
+        }
+      } catch (error) {
+        console.error("Error fetching counselors:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load counselors",
+          variant: "destructive",
+        })
+      }
+    }
+    fetchCounselors()
+  }, [])
+
+  // Filter counselors based on search
+  const filteredCounselors = counselors.filter((counselor) => {
+    const searchLower = counselorSearch.toLowerCase()
+    return counselor.name.toLowerCase().includes(searchLower) || counselor.email.toLowerCase().includes(searchLower)
   })
 
   const handleInputChange = (field: string, value: any) => {
@@ -969,42 +1005,35 @@ export default function AddNewLeadPage() {
                         <SelectValue placeholder="Select counselor" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4" />
-                            <span>Counselor 1</span>
+                        <div className="px-2 py-2">
+                          <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                            <Input
+                              placeholder="Search counselors..."
+                              value={counselorSearch}
+                              onChange={(e) => setCounselorSearch(e.target.value)}
+                              className="pl-8"
+                              onClick={(e) => e.stopPropagation()}
+                            />
                           </div>
-                        </SelectItem>
-                        <SelectItem value="2">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4" />
-                            <span>Counselor 2</span>
+                        </div>
+                        {filteredCounselors.length > 0 ? (
+                          filteredCounselors.map((counselor) => (
+                            <SelectItem key={counselor.id} value={counselor.id.toString()}>
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <Users className="w-4 h-4" />
+                                  <span className="font-medium">{counselor.name}</span>
+                                </div>
+                                <span className="text-xs text-gray-500 ml-6">{counselor.email}</span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-4 text-center text-sm text-gray-500">
+                            No counselors found
                           </div>
-                        </SelectItem>
-                        <SelectItem value="3">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4" />
-                            <span>Counselor 3</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="4">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4" />
-                            <span>Counselor 4</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="5">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4" />
-                            <span>Counselor 5</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="6">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4" />
-                            <span>Counselor 6</span>
-                          </div>
-                        </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -29,16 +29,29 @@ import {
     ThermometerSun,
     Snowflake,
     CheckCircle2,
+    Search,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api-client"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/lib/auth-context"
+
+interface Counselor {
+    id: number
+    name: string
+    email: string
+    phone_number: string
+}
 
 export default function EditLeadPage({ params }: { params: { id: string } }) {
     const router = useRouter()
+    const { user, loading: authLoading } = useAuth()
     const [currentStep, setCurrentStep] = useState(1)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
+    const [counselors, setCounselors] = useState<Counselor[]>([])
+    const [counselorSearch, setCounselorSearch] = useState("")
+    const [debouncedSearch, setDebouncedSearch] = useState("")
     const totalSteps = 3
 
     // Form state
@@ -83,13 +96,35 @@ export default function EditLeadPage({ params }: { params: { id: string } }) {
 
     // Fetch lead data on mount
     useEffect(() => {
-        const fetchLeadData = async () => {
+        // Don't fetch data until authentication is complete
+        if (authLoading) {
+            return
+        }
+
+        // Redirect to login if not authenticated
+        if (!user) {
+            router.push("/login")
+            return
+        }
+
+        const fetchData = async () => {
             try {
                 setIsLoading(true)
-                const response = await api.get(`/api/leads/${params.id}`)
 
-                if (response.success && response.data) {
-                    const lead = response.data
+                // Fetch counselors and lead data in parallel
+                const [counselorsResponse, leadResponse] = await Promise.all([
+                    api.get("/api/user/counselors"),
+                    api.get(`/api/leads/${params.id}`)
+                ])
+
+                // Set counselors
+                if (counselorsResponse.success && counselorsResponse.data) {
+                    setCounselors(counselorsResponse.data)
+                }
+
+                // Process lead data
+                if (leadResponse.success && leadResponse.data) {
+                    const lead = leadResponse.data
 
                     // Parse encrypted data
                     let personalDetails: any = {}
@@ -137,7 +172,7 @@ export default function EditLeadPage({ params }: { params: { id: string } }) {
                         intake: lead.intake || "",
                         budget: lead.budget_range || "",
                         source: lead.lead_source || "",
-                        assignedTo: lead.assigned_to ? lead.assigned_to.toString() : "",
+                        assignedTo: lead.assigned_to_id ? lead.assigned_to_id.toString() : "",
                         notes: preferences.notes || "",
                     })
                 } else {
@@ -161,8 +196,35 @@ export default function EditLeadPage({ params }: { params: { id: string } }) {
             }
         }
 
-        fetchLeadData()
-    }, [params.id, router])
+        fetchData()
+    }, [params.id, authLoading, user])
+
+    // Debounce counselor search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(counselorSearch)
+        }, 300)
+
+        return () => clearTimeout(timer)
+    }, [counselorSearch])
+
+    // Filter counselors based on debounced search
+    const filteredCounselors = useMemo(() => {
+        if (!debouncedSearch) return counselors
+
+        const searchLower = debouncedSearch.toLowerCase()
+        return counselors.filter((counselor) =>
+            counselor.name.toLowerCase().includes(searchLower) ||
+            counselor.email.toLowerCase().includes(searchLower)
+        )
+    }, [counselors, debouncedSearch])
+
+    // Get selected counselor name
+    const getSelectedCounselorName = () => {
+        if (!formData.assignedTo) return ""
+        const selectedCounselor = counselors.find(c => c.id.toString() === formData.assignedTo)
+        return selectedCounselor ? selectedCounselor.name : ""
+    }
 
     const handleInputChange = (field: string, value: any) => {
         setFormData((prev) => ({ ...prev, [field]: value }))
@@ -376,7 +438,8 @@ export default function EditLeadPage({ params }: { params: { id: string } }) {
         }
     }
 
-    if (isLoading) {
+    // Show loading state while auth is being checked
+    if (authLoading || isLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-12">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1047,45 +1110,45 @@ export default function EditLeadPage({ params }: { params: { id: string } }) {
                                         </Label>
                                         <Select value={formData.assignedTo} onValueChange={(value) => handleInputChange("assignedTo", value)}>
                                             <SelectTrigger className="border-gray-300 focus:border-orange-500 focus:ring-orange-500">
-                                                <SelectValue placeholder="Select counselor" />
+                                                <SelectValue placeholder="Select counselor">
+                                                    {formData.assignedTo && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Users className="w-4 h-4" />
+                                                            <span>{getSelectedCounselorName()}</span>
+                                                        </div>
+                                                    )}
+                                                </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="1">
-                                                    <div className="flex items-center gap-2">
-                                                        <Users className="w-4 h-4" />
-                                                        <span>Counselor 1</span>
+                                                <div className="px-2 py-2">
+                                                    <div className="relative">
+                                                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                                                        <Input
+                                                            placeholder="Search counselors..."
+                                                            value={counselorSearch}
+                                                            onChange={(e) => setCounselorSearch(e.target.value)}
+                                                            className="pl-8"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        />
                                                     </div>
-                                                </SelectItem>
-                                                <SelectItem value="2">
-                                                    <div className="flex items-center gap-2">
-                                                        <Users className="w-4 h-4" />
-                                                        <span>Counselor 2</span>
+                                                </div>
+                                                {filteredCounselors.length > 0 ? (
+                                                    filteredCounselors.map((counselor) => (
+                                                        <SelectItem key={counselor.id} value={counselor.id.toString()}>
+                                                            <div className="flex flex-col">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Users className="w-4 h-4" />
+                                                                    <span className="font-medium">{counselor.name}</span>
+                                                                </div>
+                                                                <span className="text-xs text-gray-500 ml-6">{counselor.email}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-2 py-4 text-center text-sm text-gray-500">
+                                                        No counselors found
                                                     </div>
-                                                </SelectItem>
-                                                <SelectItem value="3">
-                                                    <div className="flex items-center gap-2">
-                                                        <Users className="w-4 h-4" />
-                                                        <span>Counselor 3</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="4">
-                                                    <div className="flex items-center gap-2">
-                                                        <Users className="w-4 h-4" />
-                                                        <span>Counselor 4</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="5">
-                                                    <div className="flex items-center gap-2">
-                                                        <Users className="w-4 h-4" />
-                                                        <span>Counselor 5</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="6">
-                                                    <div className="flex items-center gap-2">
-                                                        <Users className="w-4 h-4" />
-                                                        <span>Counselor 6</span>
-                                                    </div>
-                                                </SelectItem>
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     </div>
