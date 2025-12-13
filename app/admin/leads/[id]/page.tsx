@@ -74,6 +74,36 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           const preferredCountriesArray = ensureArray(leadData.preferred_countries)
           const tagsArray = ensureArray(leadData.tags)
 
+          // Parse encrypted personal details
+          let personalDetails: any = {}
+          try {
+            if (leadData.encrypted_personal_details) {
+              personalDetails = JSON.parse(leadData.encrypted_personal_details)
+            }
+          } catch (e) {
+            console.error('Error parsing encrypted_personal_details:', e)
+          }
+
+          // Parse encrypted academic details
+          let academicDetails: any = {}
+          try {
+            if (leadData.encrypted_academic_details) {
+              academicDetails = JSON.parse(leadData.encrypted_academic_details)
+            }
+          } catch (e) {
+            console.error('Error parsing encrypted_academic_details:', e)
+          }
+
+          // Parse encrypted preferences
+          let preferences: any = {}
+          try {
+            if (leadData.encrypted_preferences) {
+              preferences = JSON.parse(leadData.encrypted_preferences)
+            }
+          } catch (e) {
+            console.error('Error parsing encrypted_preferences:', e)
+          }
+
           const mappedLead = {
             id: leadData.id,
             name: `${leadData.first_name || ''} ${leadData.last_name || ''}`.trim() || 'N/A',
@@ -82,11 +112,14 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             email: leadData.email || '',
             phone: leadData.phone_number || '',
             phoneNumber: leadData.phone_number || '',
-            alternatePhone: leadData.alternate_phone || '',
+            alternatePhone: personalDetails.alternate_phone || '',
             location: leadData.country || '',
-            address: leadData.address || '',
-            dateOfBirth: leadData.date_of_birth || 'N/A',
-            gender: leadData.gender || 'N/A',
+            address: personalDetails.address || '',
+            city: personalDetails.city || '',
+            state: personalDetails.state || '',
+            pincode: personalDetails.pincode || '',
+            dateOfBirth: personalDetails.date_of_birth || 'N/A',
+            gender: personalDetails.gender ? personalDetails.gender.charAt(0).toUpperCase() + personalDetails.gender.slice(1) : 'N/A',
             college: leadData.college || 'N/A',
             collegeLocation: leadData.college_location || 'N/A',
             course: leadData.course || 'N/A',
@@ -109,20 +142,23 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             preferredCountries: preferredCountriesArray,
             preferredCourses: preferredCoursesArray,
             testScores: {
-              ielts: "N/A",
-              gre: "N/A",
-              toefl: "N/A",
+              ielts: academicDetails.ielts || "N/A",
+              gre: academicDetails.gre || "N/A",
+              toefl: academicDetails.toefl || "N/A",
+              gmat: academicDetails.gmat || "N/A",
             },
             academicBackground: {
-              degree: "N/A",
-              university: leadData.college || "N/A",
-              percentage: "N/A",
-              yearOfPassing: "N/A",
+              degree: academicDetails.current_education || academicDetails.degree || "N/A",
+              university: academicDetails.university || leadData.college || "N/A",
+              percentage: academicDetails.percentage || "N/A",
+              yearOfPassing: academicDetails.year_of_passing || "N/A",
             },
-            workExperience: "N/A",
+            workExperience: academicDetails.work_experience || "N/A",
             tags: tagsArray,
             isDuplicate: leadData.is_duplicate || false,
             createdBy: leadData.created_by_name || 'System',
+            preferredCollege: preferences.preferred_college || '',
+            notes: preferences.notes || '',
             updatedAt: leadData.updated_at,
             encryptedPersonalDetails: leadData.encrypted_personal_details,
             encryptedAcademicDetails: leadData.encrypted_academic_details,
@@ -151,7 +187,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     }
 
     fetchLeadDetails()
-  }, [params.id, router])
+  }, [params.id])
 
   // Show loading state
   if (isLoading) {
@@ -681,13 +717,39 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                       <p className="font-medium text-gray-900">{lead.dateOfBirth}</p>
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Location</Label>
+                      <Label className="text-xs text-gray-500">Country</Label>
                       <p className="font-medium text-gray-900 flex items-center gap-1">
                         <MapPin className="w-3 h-3 text-gray-400" />
                         {lead.location}
                       </p>
                     </div>
                   </div>
+                  {lead.address && (
+                    <div className="pt-2 border-t">
+                      <Label className="text-xs text-gray-500">Address</Label>
+                      <p className="text-sm font-medium text-gray-900 whitespace-pre-line">{lead.address}</p>
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        {lead.city && (
+                          <div>
+                            <Label className="text-xs text-gray-500">City</Label>
+                            <p className="text-sm font-medium text-gray-900">{lead.city}</p>
+                          </div>
+                        )}
+                        {lead.state && (
+                          <div>
+                            <Label className="text-xs text-gray-500">State</Label>
+                            <p className="text-sm font-medium text-gray-900">{lead.state}</p>
+                          </div>
+                        )}
+                        {lead.pincode && (
+                          <div>
+                            <Label className="text-xs text-gray-500">Pincode</Label>
+                            <p className="text-sm font-medium text-gray-900">{lead.pincode}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="pt-2 border-t">
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between">
@@ -699,6 +761,17 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                           </Button>
                         </p>
                       </div>
+                      {lead.alternatePhone && (
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-gray-500">Alternate Phone</Label>
+                          <p className="font-medium text-gray-900 flex items-center gap-2">
+                            {lead.alternatePhone}
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-green-600 hover:bg-green-50">
+                              <Phone className="w-3 h-3" />
+                            </Button>
+                          </p>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <Label className="text-xs text-gray-500">Email</Label>
                         <p className="font-medium text-gray-900 flex items-center gap-2">
@@ -724,7 +797,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                 <CardContent className="space-y-3">
                   <div className="space-y-2 text-sm">
                     <div>
-                      <Label className="text-xs text-gray-500">Degree</Label>
+                      <Label className="text-xs text-gray-500">Current Education</Label>
                       <p className="font-medium text-gray-900">{lead.academicBackground.degree}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -737,21 +810,31 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                         <p className="font-medium text-gray-900">{lead.academicBackground.percentage}</p>
                       </div>
                     </div>
+                    {lead.academicBackground.yearOfPassing && lead.academicBackground.yearOfPassing !== 'N/A' && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Year of Passing</Label>
+                        <p className="font-medium text-gray-900">{lead.academicBackground.yearOfPassing}</p>
+                      </div>
+                    )}
                   </div>
                   <div className="pt-2 border-t">
                     <Label className="text-xs text-gray-500 mb-2 block">Test Scores</Label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <div className="bg-green-50 rounded-lg p-2 text-center">
                         <p className="text-xs text-gray-600">IELTS</p>
                         <p className="text-lg font-bold text-green-600">{lead.testScores.ielts}</p>
                       </div>
                       <div className="bg-blue-50 rounded-lg p-2 text-center">
-                        <p className="text-xs text-gray-600">GRE</p>
-                        <p className="text-lg font-bold text-blue-600">{lead.testScores.gre}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
                         <p className="text-xs text-gray-600">TOEFL</p>
-                        <p className="text-sm font-medium text-gray-500">{lead.testScores.toefl}</p>
+                        <p className="text-lg font-bold text-blue-600">{lead.testScores.toefl}</p>
+                      </div>
+                      <div className="bg-purple-50 rounded-lg p-2 text-center">
+                        <p className="text-xs text-gray-600">GRE</p>
+                        <p className="text-lg font-bold text-purple-600">{lead.testScores.gre}</p>
+                      </div>
+                      <div className="bg-orange-50 rounded-lg p-2 text-center">
+                        <p className="text-xs text-gray-600">GMAT</p>
+                        <p className="text-lg font-bold text-orange-600">{lead.testScores.gmat}</p>
                       </div>
                     </div>
                   </div>
@@ -775,19 +858,19 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="space-y-2 text-sm">
+                    {lead.preferredCollege && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Preferred College</Label>
+                        <p className="font-medium text-gray-900">{lead.preferredCollege}</p>
+                      </div>
+                    )}
                     <div>
-                      <Label className="text-xs text-gray-500">Preferred College</Label>
-                      <p className="font-medium text-gray-900">{lead.college}</p>
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
-                        <Globe className="w-3 h-3" />
-                        {lead.collegeLocation}
-                      </p>
+                      <Label className="text-xs text-gray-500">Intake</Label>
+                      <p className="font-medium text-gray-900">{lead.year}</p>
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Course & Intake</Label>
-                      <p className="font-medium text-gray-900">
-                        {lead.course} • {lead.year}
-                      </p>
+                      <Label className="text-xs text-gray-500">Budget Range</Label>
+                      <p className="font-medium text-gray-900">{lead.budget}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-gray-500">Preferred Countries</Label>
@@ -862,14 +945,23 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
                       <div>
+                        <Label className="text-xs text-gray-500">Created By</Label>
+                        <p className="font-medium text-gray-900 mt-0.5 flex items-center gap-1">
+                          <User className="w-3 h-3 text-gray-400" />
+                          {lead.createdBy}
+                        </p>
+                      </div>
+                      <div>
                         <Label className="text-xs text-gray-500">Created At</Label>
                         <p className="font-medium text-gray-900 mt-0.5 flex items-center gap-1">
                           <Clock className="w-3 h-3 text-gray-400" />
                           {lead.createdAt}
                         </p>
                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <Label className="text-xs text-gray-500">Last Contact</Label>
+                        <Label className="text-xs text-gray-500">Last Updated</Label>
                         <p className="font-medium text-gray-900 mt-0.5 flex items-center gap-1">
                           <Clock className="w-3 h-3 text-gray-400" />
                           {lead.lastContact}
@@ -891,6 +983,14 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                           </Badge>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {lead.notes && (
+                    <div className="pt-3 border-t border-gray-100">
+                      <Label className="text-xs text-gray-500 mb-2 block">Notes</Label>
+                      <p className="text-sm text-gray-700 whitespace-pre-line bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        {lead.notes}
+                      </p>
                     </div>
                   )}
                 </CardContent>
