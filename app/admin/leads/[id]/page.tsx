@@ -1,16 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { api } from "@/lib/api-client"
+import { toast } from "@/hooks/use-toast"
 import {
   ArrowLeft,
   Phone,
@@ -46,50 +49,166 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false)
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [lead, setLead] = useState<any>(null)
 
-  // Sample lead data
-  const lead = {
-    id: params.id,
-    name: "Priya Sharma",
-    email: "priya.sharma@email.com",
-    phone: "+91 98765 43210",
-    alternatePhone: "+91 98765 43211",
-    location: "Mumbai, Maharashtra",
-    address: "123, Andheri West, Mumbai - 400058",
-    dateOfBirth: "1998-05-15",
-    gender: "Female",
-    college: "University of California",
-    collegeLocation: "Los Angeles, USA",
-    course: "Computer Science - MS",
-    year: "Fall 2025",
-    source: "Website",
-    status: "HOT",
-    interest: "Study Abroad - USA",
-    budget: "₹25-30 Lakhs",
-    createdAt: "2024-01-15",
-    lastContact: "2024-01-20",
-    assignedTo: "Amit Counselor",
-    score: 95,
-    conversionProbability: 92,
-    aiInsight: "High intent - Mentioned specific universities and ready to proceed",
-    urgency: "high",
-    engagementLevel: 78,
-    nextAction: "Schedule counseling call within 24h",
-    timeline: "Immediate",
-    preferredCountries: ["USA", "Canada", "UK"],
-    preferredCourses: ["Computer Science", "Data Science", "AI/ML"],
-    testScores: {
-      ielts: "7.5",
-      gre: "320",
-      toefl: "Not Taken",
-    },
-    academicBackground: {
-      degree: "B.Tech in Computer Science",
-      university: "Mumbai University",
-      percentage: "85%",
-      yearOfPassing: "2020",
-    },
-    workExperience: "3 years at TCS as Software Engineer",
+  // Fetch lead data from API
+  useEffect(() => {
+    const fetchLeadDetails = async () => {
+      setIsLoading(true)
+      try {
+        const response = await api.get(`/api/leads/${params.id}`)
+
+        if (response.success && response.data) {
+          // Map backend snake_case to frontend format
+          const leadData = response.data
+
+          // Helper function to ensure array
+          const ensureArray = (value: any) => {
+            if (Array.isArray(value)) return value
+            if (typeof value === 'string') return value.split(',').map((s: string) => s.trim()).filter(Boolean)
+            return []
+          }
+
+          const preferredCoursesArray = ensureArray(leadData.preferred_courses)
+          const preferredCountriesArray = ensureArray(leadData.preferred_countries)
+          const tagsArray = ensureArray(leadData.tags)
+
+          const mappedLead = {
+            id: leadData.id,
+            name: `${leadData.first_name || ''} ${leadData.last_name || ''}`.trim() || 'N/A',
+            firstName: leadData.first_name || '',
+            lastName: leadData.last_name || '',
+            email: leadData.email || '',
+            phone: leadData.phone_number || '',
+            phoneNumber: leadData.phone_number || '',
+            alternatePhone: leadData.alternate_phone || '',
+            location: leadData.country || '',
+            address: leadData.address || '',
+            dateOfBirth: leadData.date_of_birth || 'N/A',
+            gender: leadData.gender || 'N/A',
+            college: leadData.college || 'N/A',
+            collegeLocation: leadData.college_location || 'N/A',
+            course: leadData.course || 'N/A',
+            year: leadData.intake || 'N/A',
+            source: leadData.lead_source || 'N/A',
+            status: leadData.status || 'COLD',
+            interest: preferredCoursesArray.length > 0 ? preferredCoursesArray.join(', ') : 'N/A',
+            budget: leadData.budget_range || 'N/A',
+            createdAt: leadData.created_at ? new Date(leadData.created_at).toLocaleDateString() : 'N/A',
+            lastContact: leadData.updated_at ? new Date(leadData.updated_at).toLocaleDateString() : 'N/A',
+            assignedTo: leadData.assigned_to_name || 'Unassigned',
+            assignedToId: leadData.assigned_to_id,
+            score: leadData.score || 0,
+            conversionProbability: Math.min((leadData.score || 0) + 5, 100),
+            aiInsight: "Lead data fetched from backend",
+            urgency: leadData.status === 'IMMEDIATE_HOT' || leadData.status === 'HOT' ? 'high' : 'medium',
+            engagementLevel: leadData.score || 0,
+            nextAction: "Contact lead for further details",
+            timeline: leadData.intake || 'N/A',
+            preferredCountries: preferredCountriesArray,
+            preferredCourses: preferredCoursesArray,
+            testScores: {
+              ielts: "N/A",
+              gre: "N/A",
+              toefl: "N/A",
+            },
+            academicBackground: {
+              degree: "N/A",
+              university: leadData.college || "N/A",
+              percentage: "N/A",
+              yearOfPassing: "N/A",
+            },
+            workExperience: "N/A",
+            tags: tagsArray,
+            isDuplicate: leadData.is_duplicate || false,
+            createdBy: leadData.created_by_name || 'System',
+            updatedAt: leadData.updated_at,
+            encryptedPersonalDetails: leadData.encrypted_personal_details,
+            encryptedAcademicDetails: leadData.encrypted_academic_details,
+            encryptedPreferences: leadData.encrypted_preferences,
+          }
+          setLead(mappedLead)
+        } else {
+          toast({
+            title: "Error",
+            description: response.message || "Failed to load lead details",
+            variant: "destructive",
+          })
+          router.push("/admin/leads")
+        }
+      } catch (error) {
+        console.error("Error fetching lead details:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch lead details from server",
+          variant: "destructive",
+        })
+        router.push("/admin/leads")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchLeadDetails()
+  }, [params.id, router])
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-gray-50 p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-10 w-10 rounded-lg" />
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-32 rounded-lg" />
+              <Skeleton className="h-10 w-32 rounded-lg" />
+            </div>
+          </div>
+
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="border-0 shadow-md">
+                <CardHeader className="pb-3">
+                  <Skeleton className="h-4 w-24 mb-2" />
+                  <Skeleton className="h-8 w-16" />
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+
+          {/* Content Skeleton */}
+          <Card className="border-0 shadow-md">
+            <CardHeader>
+              <Skeleton className="h-6 w-48" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex gap-4">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 flex-1" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error if lead not found
+  if (!lead) {
+    return null
   }
 
   // Activity timeline
@@ -334,10 +453,16 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     switch (status) {
       case "HOT":
         return "bg-red-600 text-white"
-      case "Warm":
+      case "IMMEDIATE_HOT":
+        return "bg-orange-600 text-white"
+      case "WARM":
         return "bg-yellow-600 text-white"
-      case "Cold":
+      case "COLD":
         return "bg-blue-600 text-white"
+      case "FEATURE_LEAD":
+        return "bg-purple-600 text-white"
+      case "CONTACTED":
+        return "bg-green-600 text-white"
       default:
         return "bg-gray-600 text-white"
     }
@@ -730,6 +855,22 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                     <Badge className="bg-orange-100 text-orange-700">{lead.timeline}</Badge>
                   </div>
                 </div>
+                {lead.tags && lead.tags.length > 0 && (
+                  <div className="pt-2 border-t">
+                    <Label className="text-xs text-gray-500">Tags</Label>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {lead.tags.map((tag: string, index: number) => (
+                        <Badge
+                          key={`${tag}-${index}`}
+                          variant="outline"
+                          className="text-xs bg-teal-50 text-teal-700 border-teal-200"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
