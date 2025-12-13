@@ -307,7 +307,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 overflow-y-auto h-[calc(100vh-16rem)]">
+        <nav className="flex-1 px-4 py-6 overflow-y-auto h-[calc(100vh-16rem)] sidebar-scroll">
           <ul className="space-y-1">
             {sidebarItems.map((item) => {
               const Icon = item.icon

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -99,6 +99,8 @@ export default function AdminLeads() {
   const [leadAccessControls, setLeadAccessControls] = useState<Map<string, LeadAccessControl[]>>(new Map())
   const [leadTransferHistories, setLeadTransferHistories] = useState<Map<string, LeadTransferHistory[]>>(new Map())
 
+  // Ref to prevent duplicate API calls on mount
+  const countsLoadedRef = useRef(false)
 
   const [activeMainTab, setActiveMainTab] = useState("leads")
   const [activeTab, setActiveTab] = useState("all")
@@ -109,6 +111,15 @@ export default function AdminLeads() {
   const [pageSize, setPageSize] = useState(10)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
+  const [totalLeadsCount, setTotalLeadsCount] = useState(0)
+  const [statusCounts, setStatusCounts] = useState({
+    hotLeads: 0,
+    immediateHotLeads: 0,
+    warmLeads: 0,
+    coldLeads: 0,
+    featureLeads: 0,
+    contactedLeads: 0
+  })
 
   const [selectedLeads, setSelectedLeads] = useState<string[]>([])
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
@@ -273,6 +284,37 @@ export default function AdminLeads() {
     }
   }
 
+  // Fetch total leads count from backend API
+  const fetchTotalLeadsCount = async () => {
+    try {
+      const response = await api.get('/api/leads/count')
+      if (response.success && response.data !== undefined) {
+        setTotalLeadsCount(response.data)
+      }
+    } catch (error) {
+      console.error('Error fetching total leads count:', error)
+    }
+  }
+
+  // Fetch lead status counts from backend API
+  const fetchLeadStatusCounts = async () => {
+    try {
+      const response = await api.get('/api/leads/status-counts')
+      if (response.success && response.data) {
+        setStatusCounts({
+          hotLeads: response.data.hot_leads || 0,
+          immediateHotLeads: response.data.immediate_hot_leads || 0,
+          warmLeads: response.data.warm_leads || 0,
+          coldLeads: response.data.cold_leads || 0,
+          featureLeads: response.data.feature_leads || 0,
+          contactedLeads: response.data.contacted_leads || 0
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching lead status counts:', error)
+    }
+  }
+
   // Refetch leads when filters change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -282,27 +324,37 @@ export default function AdminLeads() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm, selectedCampaignFilter, activeTab, dateFrom, dateTo, scoreFrom, scoreTo, selectedStatuses, selectedTags, currentPage, pageSize])
 
+  // Fetch total leads count on mount
+  useEffect(() => {
+    // Prevent duplicate calls in React 18 Strict Mode
+    if (countsLoadedRef.current) return
+    countsLoadedRef.current = true
+
+    fetchTotalLeadsCount()
+    fetchLeadStatusCounts()
+  }, [])
+
   // No localStorage persistence - using API as single source of truth
 
 
   const tabs = [
-    { id: "all", label: "All Leads", icon: Users, count: leads.length },
-    { id: "hot", label: "HOT", icon: Zap, count: leads.filter((l) => l.status === "HOT").length },
+    { id: "all", label: "All Leads", icon: Users, count: totalLeadsCount },
     {
       id: "immediate",
-      label: "Immediate Hot",
+      label: "IMMEDIATE HOT",
       icon: AlertCircle,
-      count: leads.filter((l) => l.status === "IMMEDIATE_HOT").length,
+      count: statusCounts.immediateHotLeads,
     },
-    { id: "warm", label: "Warm", icon: TrendingUp, count: leads.filter((l) => l.status === "WARM").length },
-    { id: "cold", label: "Cold", icon: Clock, count: leads.filter((l) => l.status === "COLD").length },
+    { id: "hot", label: "HOT", icon: Zap, count: statusCounts.hotLeads },
+    { id: "warm", label: "WARM", icon: TrendingUp, count: statusCounts.warmLeads },
+    { id: "cold", label: "COLD", icon: Clock, count: statusCounts.coldLeads },
     {
       id: "feature",
-      label: "Feature Lead",
+      label: "FEATURE LEAD",
       icon: Star,
-      count: leads.filter((l) => l.status === "FEATURE_LEAD").length,
+      count: statusCounts.featureLeads,
     },
-    { id: "contacted", label: "Contacted", icon: Phone, count: leads.filter((l) => l.status === "CONTACTED").length },
+    { id: "contacted", label: "CONTACTED", icon: Phone, count: statusCounts.contactedLeads },
   ]
 
   const getStatusColor = (status: string) => {
@@ -476,7 +528,7 @@ export default function AdminLeads() {
       acc[source] = { total: 0, hot: 0, converted: 0, avgScore: 0, totalScore: 0 }
     }
     acc[source].total += 1
-    if (lead.status === "HOT" || lead.status === "Immediate Hot") acc[source].hot += 1
+    if (lead.status === "HOT" || lead.status === "IMMEDIATE_HOT") acc[source].hot += 1
     if (lead.status === "Converted") acc[source].converted += 1
     acc[source].totalScore += lead.score
     acc[source].avgScore = Math.round(acc[source].totalScore / acc[source].total)
@@ -606,7 +658,7 @@ export default function AdminLeads() {
       return
     }
 
-    const isQualifyingStatus = ["HOT", "Warm", "Immediate Hot", "Contacted", "Future Lead"].includes(newStatus)
+    const isQualifyingStatus = ["HOT", "WARM", "IMMEDIATE_HOT", "CONTACTED", "FEATURE_LEAD"].includes(newStatus)
     const leadQualification = selectedLead.qualification
 
     if (isQualifyingStatus && !leadQualification) {
@@ -1076,21 +1128,33 @@ export default function AdminLeads() {
       </div>
 
       <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-6">
-        <TabsList className="bg-gray-100">
-          <TabsTrigger value="leads" className="data-[state=active]:bg-white">
+        <TabsList className="bg-gradient-to-r from-blue-600 to-purple-600 p-1 rounded-full">
+          <TabsTrigger
+            value="leads"
+            className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=inactive]:text-white rounded-full px-6 transition-all duration-200"
+          >
             All Leads
           </TabsTrigger>
           {!isCounselor && (
             <>
-              <TabsTrigger value="assign" className="data-[state=active]:bg-white">
+              <TabsTrigger
+                value="assign"
+                className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=inactive]:text-white rounded-full px-6 transition-all duration-200"
+              >
                 Assign Data
               </TabsTrigger>
-              <TabsTrigger value="allocate" className="data-[state=active]:bg-white">
+              <TabsTrigger
+                value="allocate"
+                className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=inactive]:text-white rounded-full px-6 transition-all duration-200"
+              >
                 Allocate Leads
               </TabsTrigger>
             </>
           )}
-          <TabsTrigger value="reports" className="data-[state=active]:bg-white">
+          <TabsTrigger
+            value="reports"
+            className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=inactive]:text-white rounded-full px-6 transition-all duration-200"
+          >
             Call Reporting
           </TabsTrigger>
         </TabsList>
@@ -1103,7 +1167,7 @@ export default function AdminLeads() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Total Leads</p>
-                    <p className="text-2xl font-bold text-gray-900">{leads.length.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-gray-900">{totalLeadsCount.toLocaleString()}</p>
                   </div>
                   <Users className="w-8 h-8 text-blue-600" />
                 </div>
@@ -1216,7 +1280,7 @@ export default function AdminLeads() {
                   <div className="md:col-span-2">
                     <Label className="text-xs text-gray-600">Status</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {["HOT", "Warm", "Cold", "New", "Contacted"].map((status) => (
+                      {["HOT", "IMMEDIATE_HOT", "WARM", "COLD", "CONTACTED"].map((status) => (
                         <label key={status} className="flex items-center gap-2 text-sm">
                           <Checkbox
                             checked={selectedStatuses.includes(status)}
@@ -1302,11 +1366,30 @@ export default function AdminLeads() {
           {/* Tabs */}
           <Card>
             <CardContent className="p-0">
-              <div className="bg-gray-50 border-b border-gray-200 overflow-x-auto">
+              <div className="bg-gray-50 border-b border-gray-200 overflow-x-auto custom-scrollbar">
                 <div className="flex min-w-max">
                   {tabs.map((tab) => {
                     const Icon = tab.icon
                     const isActive = activeTab === tab.id
+
+                    // Define badge colors based on tab type
+                    let badgeClass = ""
+                    if (tab.id === "immediate") {
+                      badgeClass = isActive ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md" : "bg-white text-red-600 border border-red-400"
+                    } else if (tab.id === "hot") {
+                      badgeClass = isActive ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm" : "bg-white text-orange-600 border border-orange-300"
+                    } else if (tab.id === "warm") {
+                      badgeClass = isActive ? "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-sm" : "bg-white text-yellow-600 border border-yellow-300"
+                    } else if (tab.id === "cold") {
+                      badgeClass = isActive ? "bg-gradient-to-r from-blue-400 to-blue-500 text-white shadow-sm" : "bg-white text-blue-600 border border-blue-300"
+                    } else if (tab.id === "feature") {
+                      badgeClass = isActive ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-sm" : "bg-white text-purple-600 border border-purple-300"
+                    } else if (tab.id === "contacted") {
+                      badgeClass = isActive ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-sm" : "bg-white text-green-600 border border-green-300"
+                    } else {
+                      badgeClass = isActive ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm" : "bg-white text-blue-600 border border-blue-300"
+                    }
+
                     return (
                       <button
                         key={tab.id}
@@ -1318,8 +1401,8 @@ export default function AdminLeads() {
                       >
                         <Icon className="w-4 h-4" />
                         <span className="font-medium">{tab.label}</span>
-                        <Badge className={isActive ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"}>
-                          {tab.count}
+                        <Badge variant="outline" className={`${badgeClass} font-semibold transition-all duration-200`}>
+                          {tab.count.toLocaleString()}
                         </Badge>
                       </button>
                     )
@@ -1338,7 +1421,7 @@ export default function AdminLeads() {
 
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto custom-scrollbar" style={{ minHeight: isLoading ? '600px' : 'auto' }}>
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
@@ -1364,162 +1447,13 @@ export default function AdminLeads() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredLeads.map((lead) => {
-                      const ownership = leadOwnerships.get(lead.id);
-                      const accessLevel = getUserAccessLevel(lead.id)
-                      const canEdit = canEditLead(lead.id)
-
-                      return (
-                        <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3">
-                            <Checkbox
-                              checked={selectedLeads.includes(lead.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedLeads([...selectedLeads, lead.id])
-                                } else {
-                                  setSelectedLeads(selectedLeads.filter((id) => id !== lead.id))
-                                }
-                              }}
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                {lead.name.charAt(0)}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-gray-900 text-sm">{lead.name}</p>
-                                <p className="text-xs text-gray-500">{lead.email}</p>
-                                {accessLevel !== "none" && accessLevel !== "owner" && (
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-xs mt-1 ${accessLevel === "editor" ? "border-blue-400 text-blue-700" : "border-gray-400 text-gray-700"
-                                      }`}
-                                  >
-                                    {accessLevel === "editor" ? "Can Edit" : "View Only"}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="text-sm text-gray-900">{lead.phone_number || lead.phone}</p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge
-                              className={
-                                lead.status === "HOT"
-                                  ? "bg-red-100 text-red-700"
-                                  : lead.status === "Warm"
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "bg-blue-100 text-blue-700"
-                              }
-                            >
-                              {lead.status}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            {ownership ? (
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <span className="text-xs font-semibold text-blue-700">
-                                    {ownership.ownerName.charAt(0)}
-                                  </span>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">{ownership.ownerName}</p>
-                                  {ownership.ownerId === currentUser.id && (
-                                    <Badge variant="outline" className="text-xs border-green-400 text-green-700 mt-0.5">
-                                      You
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-400">Unassigned</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg font-bold text-blue-600">{lead.score}</span>
-                              <span className="text-gray-400 text-xs">/100</span>
-                            </div>
-                            <Progress value={lead.score} className="h-1 mt-1 w-16" />
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap gap-1">
-                              {lead.tags?.slice(0, 2).map((tag: string) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => router.push(`/admin/leads/${lead.id}`)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              {canEdit && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => {
-                                      setSelectedLeadForAction(lead)
-                                      setShowEmailDialog(true)
-                                    }}
-                                  >
-                                    <Mail className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => {
-                                      setSelectedLeadForAction(lead)
-                                      setShowSMSDialog(true)
-                                    }}
-                                  >
-                                    <MessageSquare className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => {
-                                      setSelectedLeadForAction(lead)
-                                      setShowNotesDialog(true)
-                                    }}
-                                  >
-                                    <FileText className="w-4 h-4" />
-                                  </Button>
-                                </>
-                              )}
-                              {!canEdit && accessLevel === "viewer" && (
-                                <Badge variant="outline" className="text-xs border-gray-400 text-gray-600">
-                                  View Only
-                                </Badge>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                    {isLoading && (
-                      // Skeleton loading rows with staggered animation
+                    {isLoading ? (
+                      // Skeleton loading rows when data is loading
                       Array.from({ length: pageSize }).map((_, index) => (
                         <tr
                           key={`skeleton-${index}`}
                           className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
-                          style={{ animationDelay: `${index * 50}ms` }}
+                          style={{ animationDelay: `${index * 30}ms` }}
                         >
                           <td className="px-4 py-4">
                             <Skeleton className="h-4 w-4 rounded" />
@@ -1534,10 +1468,7 @@ export default function AdminLeads() {
                             </div>
                           </td>
                           <td className="px-4 py-4">
-                            <div className="flex items-center gap-2">
-                              <Skeleton className="h-4 w-4 rounded-full" />
-                              <Skeleton className="h-4 w-28" />
-                            </div>
+                            <Skeleton className="h-4 w-28" />
                           </td>
                           <td className="px-4 py-4">
                             <Skeleton className="h-6 w-20 rounded-full" />
@@ -1549,9 +1480,9 @@ export default function AdminLeads() {
                             </div>
                           </td>
                           <td className="px-4 py-4">
-                            <div className="flex items-center gap-1">
-                              <Skeleton className="h-4 w-8" />
-                              <Skeleton className="h-3 w-3 rounded-full" />
+                            <div className="space-y-1">
+                              <Skeleton className="h-4 w-12" />
+                              <Skeleton className="h-2 w-16 rounded-full" />
                             </div>
                           </td>
                           <td className="px-4 py-4">
@@ -1569,6 +1500,177 @@ export default function AdminLeads() {
                           </td>
                         </tr>
                       ))
+                    ) : (
+                      filteredLeads.map((lead) => {
+                        const ownership = leadOwnerships.get(lead.id);
+                        const accessLevel = getUserAccessLevel(lead.id)
+                        const canEdit = canEditLead(lead.id)
+
+                        return (
+                          <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3">
+                              <Checkbox
+                                checked={selectedLeads.includes(lead.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedLeads([...selectedLeads, lead.id])
+                                  } else {
+                                    setSelectedLeads(selectedLeads.filter((id) => id !== lead.id))
+                                  }
+                                }}
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                  {lead.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-gray-900 text-sm">{lead.name}</p>
+                                  <p className="text-xs text-gray-500">{lead.email}</p>
+                                  {accessLevel !== "none" && accessLevel !== "owner" && (
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-xs mt-1 ${accessLevel === "editor" ? "border-blue-400 text-blue-700" : "border-gray-400 text-gray-700"
+                                        }`}
+                                    >
+                                      {accessLevel === "editor" ? "Can Edit" : "View Only"}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="text-sm text-gray-900">{lead.phone_number || lead.phone}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  lead.status === "IMMEDIATE_HOT"
+                                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-0 shadow-md font-bold"
+                                    : lead.status === "HOT"
+                                      ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0 shadow-sm"
+                                      : lead.status === "WARM"
+                                        ? "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white border-0 shadow-sm"
+                                        : lead.status === "COLD"
+                                          ? "bg-gradient-to-r from-blue-400 to-blue-500 text-white border-0 shadow-sm"
+                                          : lead.status === "FEATURE_LEAD"
+                                            ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0 shadow-sm"
+                                            : lead.status === "CONTACTED"
+                                              ? "bg-gradient-to-r from-green-500 to-green-600 text-white border-0 shadow-sm"
+                                              : "bg-gray-100 text-gray-700 border-gray-300"
+                                }
+                              >
+                                {lead.status === "IMMEDIATE_HOT"
+                                  ? "IMMEDIATE HOT"
+                                  : lead.status === "FEATURE_LEAD"
+                                    ? "FEATURE LEAD"
+                                    : lead.status === "CONTACTED"
+                                      ? "CONTACTED"
+                                      : lead.status === "WARM"
+                                        ? "WARM"
+                                        : lead.status === "COLD"
+                                          ? "COLD"
+                                          : lead.status === "HOT"
+                                            ? "HOT"
+                                            : lead.status}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              {ownership ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span className="text-xs font-semibold text-blue-700">
+                                      {ownership.ownerName.charAt(0)}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">{ownership.ownerName}</p>
+                                    {ownership.ownerId === currentUser.id && (
+                                      <Badge variant="outline" className="text-xs border-green-400 text-green-700 mt-0.5">
+                                        You
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400">Unassigned</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg font-bold text-blue-600">{lead.score}</span>
+                                <span className="text-gray-400 text-xs">/100</span>
+                              </div>
+                              <Progress value={lead.score} className="h-1 mt-1 w-16" />
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {lead.tags?.slice(0, 2).map((tag: string) => (
+                                  <Badge key={tag} variant="outline" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => router.push(`/admin/leads/${lead.id}`)}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                {canEdit && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => {
+                                        setSelectedLeadForAction(lead)
+                                        setShowEmailDialog(true)
+                                      }}
+                                    >
+                                      <Mail className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => {
+                                        setSelectedLeadForAction(lead)
+                                        setShowSMSDialog(true)
+                                      }}
+                                    >
+                                      <MessageSquare className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => {
+                                        setSelectedLeadForAction(lead)
+                                        setShowNotesDialog(true)
+                                      }}
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                    </Button>
+                                  </>
+                                )}
+                                {!canEdit && accessLevel === "viewer" && (
+                                  <Badge variant="outline" className="text-xs border-gray-400 text-gray-600">
+                                    View Only
+                                  </Badge>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
                     )}
                     {!isLoading && filteredLeads.length === 0 && (
                       <tr>
