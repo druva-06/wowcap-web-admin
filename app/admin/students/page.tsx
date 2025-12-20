@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,65 +8,140 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import Link from "next/link"
-import { Search, Download, UserPlus, Eye, FileText, Upload, CheckCircle, AlertCircle, Calendar, Phone, Mail, GraduationCap, Users, MessageSquare, Briefcase, BookOpen, Target, TrendingUp, ExternalLink, Award, ClipboardCheck, DollarSign, MapPin, Building } from 'lucide-react'
-import { mockData } from "@/lib/mock-data"
+import { Search, Download, UserPlus, Eye, FileText, Upload, CheckCircle, AlertCircle, Calendar, Phone, Mail, GraduationCap, Users, MessageSquare, Briefcase, BookOpen, Target, TrendingUp, ExternalLink, Award, ClipboardCheck, DollarSign, MapPin, Building, Loader2 } from 'lucide-react'
+import { api } from "@/lib/api-client"
+
+// Types for API response
+interface User {
+  user_id: number
+  first_name: string
+  last_name: string
+  username: string
+  email: string
+  phone_number: string
+  profile_picture?: string
+  role: string
+}
+
+interface PagedResponse {
+  users: User[]
+  current_page: number
+  total_pages: number
+  total_elements: number
+  page_size: number
+  first: boolean
+  last: boolean
+}
 
 export default function AdminStudents() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
-  const [userTypeFilter, setUserTypeFilter] = useState("all")
-  const [servicesFilter, setServicesFilter] = useState("all")
+  const [currentPage, setCurrentPage] = useState(0) // Backend uses 0-indexed pages
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [students, setStudents] = useState<User[]>([])
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const students = mockData.students
+  // Fetch students from API
+  useEffect(() => {
+    const fetchStudents = async () => {
+      setLoading(true)
+      setError(null)
 
+      try {
+        const result = await api.get<PagedResponse>(
+          `/api/user/by-role?role=STUDENT&page=${currentPage}&size=${itemsPerPage}`
+        )
+
+        if (result.success && result.data) {
+          setStudents(result.data.users)
+          setTotalPages(result.data.total_pages)
+          setTotalElements(result.data.total_elements)
+        } else {
+          setError(result.message || "Failed to fetch students")
+        }
+      } catch (err) {
+        setError("An error occurred while fetching students")
+        console.error("Error fetching students:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStudents()
+  }, [currentPage, itemsPerPage])
+
+  // Filter students locally by search term
   const filteredStudents = students.filter((student) => {
-    const matchesSearch =
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.id.toLowerCase().includes(searchTerm.toLowerCase())
+    if (!searchTerm) return true
 
-    const matchesUserType =
-      userTypeFilter === "all" ||
-      (student.userType && student.userType.includes(userTypeFilter as any))
+    const searchLower = searchTerm.toLowerCase()
+    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase()
 
-    const matchesServices =
-      servicesFilter === "all" ||
-      (servicesFilter === "counseling" && student.applications?.length > 0) ||
-      (servicesFilter === "psychometric" && student.services?.psychometricTests) ||
-      (servicesFilter === "interviews" && student.services?.mockInterviews) ||
-      (servicesFilter === "loans" && student.services?.loans) ||
-      (servicesFilter === "training" && student.services?.training) ||
-      (servicesFilter === "community" && student.communityActivity) ||
-      (servicesFilter === "jobs" && student.jobsPortal)
-
-    return matchesSearch && matchesUserType && matchesServices
+    return (
+      fullName.includes(searchLower) ||
+      student.email.toLowerCase().includes(searchLower) ||
+      student.username.toLowerCase().includes(searchLower)
+    )
   })
 
-  const getUserTypeBadge = (type: string) => {
-    const colors: Record<string, string> = {
-      counseling_client: "bg-blue-100 text-blue-800",
-      community_member: "bg-green-100 text-green-800",
-      job_seeker: "bg-purple-100 text-purple-800",
-      early_explorer: "bg-amber-100 text-amber-800",
-    }
-    return colors[type] || "bg-gray-100 text-gray-800"
-  }
+  // Generate page numbers for pagination (adjusted for 0-indexed pages)
+  const generatePageNumbers = () => {
+    const pages = []
+    const maxVisiblePages = 5
+    const displayCurrentPage = currentPage + 1 // Convert to 1-indexed for display
 
-  const getServiceIcons = (student: any) => {
-    const icons = []
-    if (student.applications?.length > 0) icons.push({ icon: GraduationCap, tooltip: "Counseling Client" })
-    if (student.communityActivity) icons.push({ icon: Users, tooltip: "Community Member" })
-    if (student.jobsPortal) icons.push({ icon: Briefcase, tooltip: "Job Seeker" })
-    if (student.services?.psychometricTests) icons.push({ icon: Target, tooltip: "Psychometric Tests" })
-    if (student.services?.mockInterviews) icons.push({ icon: ClipboardCheck, tooltip: "Mock Interviews" })
-    if (student.services?.loans) icons.push({ icon: DollarSign, tooltip: "Loans" })
-    if (student.services?.training) icons.push({ icon: BookOpen, tooltip: "Training" })
-    return icons
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is less than max
+      for (let i = 0; i < totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Always show first page
+      pages.push(0)
+
+      if (displayCurrentPage > 3) {
+        pages.push('ellipsis-start')
+      }
+
+      // Show pages around current page
+      const start = Math.max(1, currentPage - 1)
+      const end = Math.min(totalPages - 2, currentPage + 1)
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i)
+      }
+
+      if (displayCurrentPage < totalPages - 2) {
+        pages.push('ellipsis-end')
+      }
+
+      // Always show last page
+      pages.push(totalPages - 1)
+    }
+
+    return pages
   }
 
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -87,7 +162,7 @@ export default function AdminStudents() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Students</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{students.length}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{totalElements}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Users className="w-6 h-6 text-blue-600" />
@@ -101,7 +176,7 @@ export default function AdminStudents() {
               <div>
                 <p className="text-sm text-gray-600">Counseling Clients</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {students.filter((s) => s.userType?.includes("counseling_client")).length}
+                  {students.length}
                 </p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -116,11 +191,11 @@ export default function AdminStudents() {
               <div>
                 <p className="text-sm text-gray-600">Community Members</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {students.filter((s) => s.userType?.includes("community_member")).length}
+                  {currentPage + 1} / {totalPages || 1}
                 </p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-6 h-6 text-purple-600" />
+                <FileText className="w-6 h-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
@@ -131,11 +206,11 @@ export default function AdminStudents() {
               <div>
                 <p className="text-sm text-gray-600">Job Seekers</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {students.filter((s) => s.userType?.includes("job_seeker")).length}
+                  {itemsPerPage}
                 </p>
               </div>
               <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-amber-600" />
+                <Award className="w-6 h-6 text-amber-600" />
               </div>
             </div>
           </CardContent>
@@ -148,49 +223,12 @@ export default function AdminStudents() {
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="Search by name, email, student ID..."
+                placeholder="Search by name, email, username..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
-              <SelectTrigger className="w-full lg:w-48">
-                <SelectValue placeholder="User Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All User Types</SelectItem>
-                <SelectItem value="counseling_client">Counseling Clients</SelectItem>
-                <SelectItem value="community_member">Community Members</SelectItem>
-                <SelectItem value="job_seeker">Job Seekers</SelectItem>
-                <SelectItem value="early_explorer">Early Explorers</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={servicesFilter} onValueChange={setServicesFilter}>
-              <SelectTrigger className="w-full lg:w-48">
-                <SelectValue placeholder="Services Used" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Services</SelectItem>
-                <SelectItem value="counseling">Counseling</SelectItem>
-                <SelectItem value="psychometric">Psychometric Tests</SelectItem>
-                <SelectItem value="interviews">Mock Interviews</SelectItem>
-                <SelectItem value="loans">Loans</SelectItem>
-                <SelectItem value="training">Training</SelectItem>
-                <SelectItem value="community">Community</SelectItem>
-                <SelectItem value="jobs">Jobs Portal</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select>
-              <SelectTrigger className="w-full lg:w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
             <Button variant="outline">
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -212,73 +250,155 @@ export default function AdminStudents() {
                   <thead className="bg-gray-50 border-b">
                     <tr>
                       <th className="text-left p-4 text-sm font-semibold text-gray-700">Student Info</th>
-                      <th className="text-left p-4 text-sm font-semibold text-gray-700">User Type</th>
-                      <th className="text-left p-4 text-sm font-semibold text-gray-700">Services</th>
-                      <th className="text-left p-4 text-sm font-semibold text-gray-700">Study Intent</th>
+                      <th className="text-left p-4 text-sm font-semibold text-gray-700">Username</th>
+                      <th className="text-left p-4 text-sm font-semibold text-gray-700">Phone Number</th>
+                      <th className="text-left p-4 text-sm font-semibold text-gray-700">Role</th>
                       <th className="text-left p-4 text-sm font-semibold text-gray-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredStudents.map((student) => (
-                      <tr
-                        key={student.id}
-                        className="border-b hover:bg-blue-50 cursor-pointer"
-                        onClick={() => setSelectedStudent(student)}
-                      >
-                        <td className="p-4">
-                          <div>
-                            <p className="font-semibold text-gray-900">{student.name}</p>
-                            <p className="text-sm text-gray-600">{student.id}</p>
-                            <div className="flex items-center text-xs text-gray-500 mt-1">
-                              <Mail className="w-3 h-3 mr-1" />
-                              {student.email}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex flex-wrap gap-1">
-                            {student.userType?.map((type) => (
-                              <Badge key={type} className={`${getUserTypeBadge(type)} text-xs`}>
-                                {type.replace("_", " ")}
-                              </Badge>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex gap-2">
-                            {getServiceIcons(student).map((service, idx) => (
-                              <div
-                                key={idx}
-                                className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center"
-                                title={service.tooltip}
-                              >
-                                <service.icon className="w-4 h-4 text-blue-600" />
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 capitalize">
-                              {student.studyIntent?.replace("_", " ") || "Exploring"}
-                            </p>
-                            {student.educationLevel && (
-                              <p className="text-xs text-gray-600">{student.educationLevel}</p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex space-x-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </div>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={5} className="p-12 text-center">
+                          <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2" />
+                          <p className="text-gray-500">Loading students...</p>
                         </td>
                       </tr>
-                    ))}
+                    ) : filteredStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-12 text-center">
+                          <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                          <p className="text-gray-500 font-medium">No students found</p>
+                          <p className="text-sm text-gray-400 mt-1">
+                            {searchTerm ? "Try adjusting your search criteria" : "No students available"}
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredStudents.map((student) => (
+                        <tr
+                          key={student.user_id}
+                          className="border-b hover:bg-blue-50 cursor-pointer"
+                          onClick={() => setSelectedStudent(student)}
+                        >
+                          <td className="p-4">
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {student.first_name} {student.last_name}
+                              </p>
+                              <p className="text-sm text-gray-600">ID: {student.user_id}</p>
+                              <div className="flex items-center text-xs text-gray-500 mt-1">
+                                <Mail className="w-3 h-3 mr-1" />
+                                {student.email}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <p className="text-sm text-gray-900">{student.username}</p>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center text-sm text-gray-900">
+                              <Phone className="w-3 h-3 mr-1 text-gray-400" />
+                              {student.phone_number}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-semibold px-3 py-1">
+                              {student.role}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedStudent(student)
+                                }}
+                                className="hover:bg-blue-100"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {!loading && totalElements > 0 && (
+                <div className="border-t px-6 py-4">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    {/* Items per page selector and info */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">Rows per page:</span>
+                        <Select
+                          value={itemsPerPage.toString()}
+                          onValueChange={(value) => {
+                            setItemsPerPage(Number(value))
+                            setCurrentPage(0) // Reset to first page
+                          }}
+                        >
+                          <SelectTrigger className="w-20 h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="25">25</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        Showing {currentPage * itemsPerPage + 1}-{Math.min((currentPage + 1) * itemsPerPage, totalElements)} of {totalElements}
+                      </span>
+                    </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious
+                              onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                              className={currentPage === 0 ? "pointer-events-none opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                            />
+                          </PaginationItem>
+
+                          {generatePageNumbers().map((page, index) => (
+                            <PaginationItem key={index}>
+                              {typeof page === 'number' ? (
+                                <PaginationLink
+                                  onClick={() => setCurrentPage(page)}
+                                  isActive={currentPage === page}
+                                  className="cursor-pointer"
+                                >
+                                  {page + 1}
+                                </PaginationLink>
+                              ) : (
+                                <PaginationEllipsis />
+                              )}
+                            </PaginationItem>
+                          ))}
+
+                          <PaginationItem>
+                            <PaginationNext
+                              onClick={() => setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1))}
+                              className={currentPage === totalPages - 1 ? "pointer-events-none opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -295,244 +415,56 @@ export default function AdminStudents() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="overview">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="services">Services</TabsTrigger>
-                    <TabsTrigger value="community">Activity</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="overview" className="space-y-4 mt-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Personal Information</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Name:</span>
-                          <span className="font-medium">{selectedStudent.name}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Email:</span>
-                          <span className="font-medium text-xs">{selectedStudent.email}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Phone:</span>
-                          <span className="font-medium">{selectedStudent.phone}</span>
-                        </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Personal Information</h3>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between items-start">
+                        <span className="text-gray-600">Name:</span>
+                        <span className="font-medium text-right">{selectedStudent.first_name} {selectedStudent.last_name}</span>
                       </div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-gray-600">Username:</span>
+                        <span className="font-medium text-right">{selectedStudent.username}</span>
+                      </div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-gray-600">Email:</span>
+                        <span className="font-medium text-xs text-right break-all">{selectedStudent.email}</span>
+                      </div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-gray-600">Phone:</span>
+                        <span className="font-medium text-right">{selectedStudent.phone_number}</span>
+                      </div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-gray-600">User ID:</span>
+                        <span className="font-medium text-right">{selectedStudent.user_id}</span>
+                      </div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-gray-600">Role:</span>
+                        <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold px-3 py-1">{selectedStudent.role}</Badge>
+                      </div>
+                      {selectedStudent.profile_picture && (
+                        <div className="flex justify-between items-start">
+                          <span className="text-gray-600">Profile:</span>
+                          <img
+                            src={selectedStudent.profile_picture}
+                            alt="Profile"
+                            className="w-16 h-16 rounded-full object-cover"
+                          />
+                        </div>
+                      )}
                     </div>
+                  </div>
 
-                    {selectedStudent.applications?.length > 0 && (
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Study Plans</h3>
-                        <div className="space-y-2">
-                          {selectedStudent.applications.slice(0, 2).map((app: any) => (
-                            <div key={app.id} className="p-3 bg-gray-50 rounded-lg">
-                              <p className="text-sm font-semibold text-gray-900">{app.college}</p>
-                              <p className="text-xs text-gray-600">{app.course}</p>
-                              <Badge className="mt-1 text-xs bg-green-100 text-green-800">{app.status}</Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="services" className="space-y-4 mt-4">
-                    {/* Psychometric Tests */}
-                    {selectedStudent.services?.psychometricTests && (
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
-                          <Target className="w-4 h-4 mr-2 text-blue-600" />
-                          Psychometric Tests
-                        </h3>
-                        {selectedStudent.services.psychometricTests.map((test: any, idx: number) => (
-                          <div key={idx} className="p-3 bg-gray-50 rounded-lg mb-2">
-                            <p className="text-sm font-medium">{test.testName}</p>
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-xs text-gray-600">{test.date}</span>
-                              <Badge className="bg-blue-100 text-blue-800 text-xs">Score: {test.score}</Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Mock Interviews */}
-                    {selectedStudent.services?.mockInterviews && (
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
-                          <ClipboardCheck className="w-4 h-4 mr-2 text-purple-600" />
-                          Mock Interviews
-                        </h3>
-                        {selectedStudent.services.mockInterviews.map((interview: any, idx: number) => (
-                          <div key={idx} className="p-3 bg-gray-50 rounded-lg mb-2">
-                            <p className="text-sm font-medium">{interview.interviewType}</p>
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-xs text-gray-600">{interview.date}</span>
-                              <Badge className="bg-purple-100 text-purple-800 text-xs">
-                                Rating: {interview.rating}/10
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-gray-600 mt-1">{interview.feedback}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Loans */}
-                    {selectedStudent.services?.loans && (
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
-                          <DollarSign className="w-4 h-4 mr-2 text-green-600" />
-                          Loan Applications
-                        </h3>
-                        {selectedStudent.services.loans.map((loan: any, idx: number) => (
-                          <div key={idx} className="p-3 bg-gray-50 rounded-lg mb-2">
-                            <p className="text-sm font-medium">{loan.loanProvider}</p>
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-xs text-gray-600">{loan.amount}</span>
-                              <Badge
-                                className={`text-xs ${
-                                  loan.status === "approved"
-                                    ? "bg-green-100 text-green-800"
-                                    : loan.status === "rejected"
-                                      ? "bg-red-100 text-red-800"
-                                      : "bg-amber-100 text-amber-800"
-                                }`}
-                              >
-                                {loan.status}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Training Programs */}
-                    {selectedStudent.services?.training && (
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
-                          <BookOpen className="w-4 h-4 mr-2 text-indigo-600" />
-                          Training Programs
-                        </h3>
-                        {selectedStudent.services.training.map((training: any, idx: number) => (
-                          <div key={idx} className="p-3 bg-gray-50 rounded-lg mb-2">
-                            <p className="text-sm font-medium">{training.programName}</p>
-                            <Progress value={training.progress} className="mt-2 h-2" />
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-xs text-gray-600">
-                                {training.startDate} - {training.endDate}
-                              </span>
-                              <span className="text-xs font-medium">{training.progress}%</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Campus Visits */}
-                    {selectedStudent.services?.campusVisits && (
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
-                          <MapPin className="w-4 h-4 mr-2 text-orange-600" />
-                          Campus Visits
-                        </h3>
-                        {selectedStudent.services.campusVisits.map((visit: any, idx: number) => (
-                          <div key={idx} className="p-3 bg-gray-50 rounded-lg mb-2">
-                            <p className="text-sm font-medium">{visit.college}</p>
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-xs text-gray-600">{visit.visitDate}</span>
-                              <Badge className="bg-orange-100 text-orange-800 text-xs capitalize">{visit.type}</Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="community" className="space-y-4 mt-4">
-                    {/* Community Activity */}
-                    {selectedStudent.communityActivity && (
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                          <Users className="w-4 h-4 mr-2 text-blue-600" />
-                          Community Activity
-                        </h3>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="p-3 bg-blue-50 rounded-lg">
-                            <p className="text-2xl font-bold text-blue-600">
-                              {selectedStudent.communityActivity.postsCreated}
-                            </p>
-                            <p className="text-xs text-gray-600">Posts Created</p>
-                          </div>
-                          <div className="p-3 bg-green-50 rounded-lg">
-                            <p className="text-2xl font-bold text-green-600">
-                              {selectedStudent.communityActivity.commentsPosted}
-                            </p>
-                            <p className="text-xs text-gray-600">Comments</p>
-                          </div>
-                          <div className="p-3 bg-purple-50 rounded-lg">
-                            <p className="text-2xl font-bold text-purple-600">
-                              {selectedStudent.communityActivity.groupsMembership?.length || 0}
-                            </p>
-                            <p className="text-xs text-gray-600">Groups</p>
-                          </div>
-                          <div className="p-3 bg-amber-50 rounded-lg">
-                            <p className="text-2xl font-bold text-amber-600">
-                              {selectedStudent.communityActivity.reputation}
-                            </p>
-                            <p className="text-xs text-gray-600">Reputation</p>
-                          </div>
-                        </div>
-                        <div className="mt-3">
-                          <p className="text-xs text-gray-600">
-                            Last Active: {selectedStudent.communityActivity.lastActive}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Jobs Portal Activity */}
-                    {selectedStudent.jobsPortal && (
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                          <Briefcase className="w-4 h-4 mr-2 text-purple-600" />
-                          Jobs Portal
-                        </h3>
-                        <div className="space-y-2">
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600">Applications Submitted</p>
-                            <p className="text-xl font-bold text-gray-900">
-                              {selectedStudent.jobsPortal.applicationsSubmitted}
-                            </p>
-                          </div>
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-2">Companies Interested</p>
-                            <div className="flex flex-wrap gap-1">
-                              {selectedStudent.jobsPortal.companiesInterested?.map((company: string) => (
-                                <Badge key={company} className="bg-purple-100 text-purple-800 text-xs">
-                                  {company}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          {selectedStudent.jobsPortal.externalProfileLink && (
-                            <Button variant="outline" size="sm" className="w-full" asChild>
-                              <a
-                                href={selectedStudent.jobsPortal.externalProfileLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <ExternalLink className="w-4 h-4 mr-2" />
-                                View LinkedIn Profile
-                              </a>
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
+                  <div className="pt-4 border-t">
+                    <Button className="w-full" variant="outline" asChild>
+                      <Link href={`/admin/students/${selectedStudent.user_id}`}>
+                        View Full Profile
+                        <ExternalLink className="w-4 h-4 ml-2" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ) : (
