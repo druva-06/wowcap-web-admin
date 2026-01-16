@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context"
 import { UnauthorizedAccess } from "@/components/unauthorized-access"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Home, Users, GraduationCap, FileText, Building2, Megaphone, DollarSign, UserCog, Laptop, BarChart3, Settings, Menu, X, ChevronRight, LogOut, Search, UserCheck, ChevronDown, Phone, MessageSquare } from 'lucide-react'
+import { Home, Users, GraduationCap, FileText, Building2, Megaphone, DollarSign, UserCog, Laptop, BarChart3, Settings, Menu, X, ChevronRight, LogOut, Search, UserCheck, ChevronDown, Phone, MessageSquare, Shield } from 'lucide-react'
 import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const [financeExpanded, setFinanceExpanded] = useState(false)
   const [hrExpanded, setHrExpanded] = useState(false)
   const [communityExpanded, setCommunityExpanded] = useState(false)
+  const [rolesExpanded, setRolesExpanded] = useState(false)
   const [hasUnauthorizedAccess, setHasUnauthorizedAccess] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -78,6 +79,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     }
     if (pathname.startsWith("/admin/community")) {
       setCommunityExpanded(true)
+    }
+    if (pathname.startsWith("/admin/roles") || pathname.startsWith("/admin/permissions") || pathname.startsWith("/admin/user-permissions")) {
+      setRolesExpanded(true)
     }
   }, [pathname])
 
@@ -157,9 +161,36 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         { id: "training", label: "Training Records", href: "/admin/hr/training" },
       ],
     },
-    { id: "assets", label: "Assets", icon: Laptop, href: "/admin/assets" },
-    { id: "reports", label: "Reports", icon: BarChart3, href: "/admin/reports" },
-    { id: "settings", label: "Settings", icon: Settings, href: "/admin/settings" },
+    {
+      id: "assets",
+      label: "Assets",
+      icon: Laptop,
+      href: "/admin/assets"
+    },
+    {
+      id: "reports",
+      label: "Reports",
+      icon: BarChart3,
+      href: "/admin/reports"
+    },
+    {
+      id: "roles",
+      label: "Roles & Permissions",
+      icon: Shield,
+      href: "/admin/roles",
+      hasSubmenu: true,
+      submenu: [
+        { id: "roles-management", label: "Roles Management", href: "/admin/roles" },
+        { id: "permissions-management", label: "Permissions", href: "/admin/permissions" },
+        { id: "user-permissions", label: "User Permissions", href: "/admin/user-permissions" },
+      ],
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+      href: "/admin/settings"
+    },
   ]
 
   const handleLogout = () => {
@@ -284,7 +315,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       <div
-        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-blue-600 via-blue-700 to-blue-800 text-white transform transition-transform duration-300 ease-in-out z-50 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed left-0 top-0 h-screen w-72 bg-gradient-to-b from-blue-600 via-blue-700 to-blue-800 text-white transform transition-transform duration-300 ease-in-out z-50 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
           } lg:translate-x-0 shadow-2xl`}
       >
         <div className="flex items-center justify-between p-6 border-b border-blue-500/30">
@@ -327,7 +358,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                             ? hrExpanded
                             : item.id === "community"
                               ? communityExpanded
-                              : false
+                              : item.id === "roles"
+                                ? rolesExpanded
+                                : false
 
                 const toggleExpanded =
                   item.id === "partners"
@@ -342,7 +375,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                             ? () => setHrExpanded(!hrExpanded)
                             : item.id === "community"
                               ? () => setCommunityExpanded(!communityExpanded)
-                              : () => { }
+                              : item.id === "roles"
+                                ? () => setRolesExpanded(!rolesExpanded)
+                                : () => { }
 
                 return (
                   <li key={item.id}>
@@ -353,14 +388,14 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                         : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
                         }`}
                     >
-                      <div className="flex items-center space-x-3">
-                        <Icon className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-blue-200"}`} />
+                      <div className="flex items-center gap-3">
+                        <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-blue-600" : "text-blue-200"}`} />
                         <span className="font-medium">{item.label}</span>
                       </div>
-                      <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                      <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                     </button>
                     {isExpanded && (
-                      <ul className="mt-1 ml-4 space-y-1">
+                      <ul className="mt-2 ml-8 space-y-1 border-l-2 border-blue-400/30 pl-3">
                         {item.submenu?.map((subItem) => {
                           const isSubActive = pathname === subItem.href
                           return (
@@ -368,7 +403,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                               <Link
                                 href={subItem.href}
                                 onClick={() => setSidebarOpen(false)}
-                                className={`flex items-center space-x-3 px-4 py-2 rounded-lg transition-all text-sm ${isSubActive
+                                className={`flex items-center px-3 py-2 rounded-lg transition-all text-sm ${isSubActive
                                   ? "bg-blue-500/30 text-white font-medium"
                                   : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
                                   }`}
@@ -389,14 +424,16 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   <Link
                     href={item.href}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${isActive
+                    className={`flex items-center justify-between px-4 py-3 rounded-lg transition-all ${isActive
                       ? "bg-white text-blue-600 shadow-lg font-semibold"
                       : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
                       }`}
                   >
-                    <Icon className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-blue-200"}`} />
-                    <span className="font-medium">{item.label}</span>
-                    {isActive && <ChevronRight className="w-4 h-4 ml-auto text-blue-600" />}
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-blue-600" : "text-blue-200"}`} />
+                      <span className="font-medium">{item.label}</span>
+                    </div>
+                    {isActive && <ChevronRight className="w-4 h-4 ml-auto text-blue-600 flex-shrink-0" />}
                   </Link>
                 </li>
               )
@@ -416,8 +453,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      <div className="lg:ml-64">
-        <header className="bg-white shadow-sm border-b border-gray-200 fixed top-0 left-0 right-0 lg:left-64 z-30">
+      <div className="lg:ml-72">
+        <header className="bg-white shadow-sm border-b border-gray-200 fixed top-0 left-0 right-0 lg:left-72 z-30">
           <div className="px-4 md:px-6 py-3 md:py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
