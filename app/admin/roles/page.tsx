@@ -31,12 +31,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { getAllRoles, createRole, updateRole, deleteRole, RoleResponseDto, RoleRequestDto } from "@/lib/api/roles"
-import { 
-    getAllPermissions, 
-    getPermissionsByRoleId, 
-    assignPermissionsToRole, 
+import {
+    getAllPermissions,
+    getPermissionsByRoleId,
+    assignPermissionsToRole,
     revokePermissionsFromRole,
-    PermissionResponseDto 
+    PermissionResponseDto
 } from "@/lib/api/permissions"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -252,14 +252,14 @@ export default function RolesManagementPage() {
         setSelectedRole(role)
         setPermissionsLoading(true)
         setManagePermissionsOpen(true)
-        
+
         try {
             // Fetch all permissions and role's current permissions in parallel
             const [allPerms, rolePerms] = await Promise.all([
                 getAllPermissions(),
                 getPermissionsByRoleId(role.id)
             ])
-            
+
             setAllPermissions(allPerms)
             setRolePermissions(rolePerms)
         } catch (error) {
@@ -276,7 +276,7 @@ export default function RolesManagementPage() {
 
     const handleAssignPermissions = async () => {
         if (!selectedRole || selectedPermissions.length === 0) return
-        
+
         try {
             await assignPermissionsToRole(selectedRole.id, selectedPermissions)
             toast({
@@ -298,7 +298,7 @@ export default function RolesManagementPage() {
 
     const handleRevokePermissions = async () => {
         if (!selectedRole || selectedPermissions.length === 0) return
-        
+
         try {
             await revokePermissionsFromRole(selectedRole.id, selectedPermissions)
             toast({
@@ -327,7 +327,7 @@ export default function RolesManagementPage() {
     }
 
     // Filter permissions
-    const availablePermissions = allPermissions.filter(p => 
+    const availablePermissions = allPermissions.filter(p =>
         !rolePermissions.some(rp => rp.id === p.id)
     )
 
@@ -542,7 +542,6 @@ export default function RolesManagementPage() {
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem
                                                 onClick={() => openDeleteDialog(role)}
-                                                disabled={role.isSystemRole}
                                                 className="text-red-600"
                                             >
                                                 <Trash2 className="w-4 h-4 mr-2" />
@@ -683,7 +682,7 @@ export default function RolesManagementPage() {
                         <DialogHeader>
                             <DialogTitle>Edit Role</DialogTitle>
                             <DialogDescription>
-                                Update role details {selectedRole?.isSystemRole && "(System roles have limited editing)"}
+                                Update role details
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
@@ -694,7 +693,6 @@ export default function RolesManagementPage() {
                                     placeholder="MARKETING_MANAGER"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value.toUpperCase().replace(/\s/g, '_') })}
-                                    disabled={selectedRole?.isSystemRole}
                                 />
                             </div>
                             <div className="space-y-2">

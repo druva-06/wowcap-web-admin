@@ -6,6 +6,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import AIChatbot from "@/components/ai-chatbot"
 import { AuthProvider } from "@/lib/auth-context"
+import { PermissionsProvider } from "@/lib/permissions-context"
 
 export default function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -17,18 +18,20 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
 
   return (
     <AuthProvider>
-      {isDashboardRoute ? (
-        // Dashboard routes (admin, college, subagent, counselor): no header, footer, or chatbot
-        <>{children}</>
-      ) : (
-        // Regular routes: include header, footer, and chatbot
-        <>
-          <Header />
-          <main>{children}</main>
-          <Footer />
-          <AIChatbot />
-        </>
-      )}
+      <PermissionsProvider>
+        {isDashboardRoute ? (
+          // Dashboard routes (admin, college, subagent, counselor): no header, footer, or chatbot
+          <>{children}</>
+        ) : (
+          // Regular routes: include header, footer, and chatbot
+          <>
+            <Header />
+            <main>{children}</main>
+            <Footer />
+            <AIChatbot />
+          </>
+        )}
+      </PermissionsProvider>
     </AuthProvider>
   )
 }

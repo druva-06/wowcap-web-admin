@@ -2,12 +2,14 @@
 
 import type React from "react"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, Suspense, useMemo } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { usePermissions } from "@/lib/permissions-context"
+import { buildMenuForUser, type FilteredMenuItem } from "@/lib/menu-builder"
 import { UnauthorizedAccess } from "@/components/unauthorized-access"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Home, Users, GraduationCap, FileText, Building2, Megaphone, DollarSign, UserCog, Laptop, BarChart3, Settings, Menu, X, ChevronRight, LogOut, Search, UserCheck, ChevronDown, Phone, MessageSquare, Shield } from 'lucide-react'
+import { Menu, X, ChevronRight, LogOut, Search, ChevronDown } from 'lucide-react'
 import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
 import { Input } from "@/components/ui/input"
@@ -23,20 +25,21 @@ import { NotificationCenter } from "@/components/notification-center"
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [partnersExpanded, setPartnersExpanded] = useState(false)
-  const [collegesExpanded, setCollegesExpanded] = useState(false)
-  const [marketingExpanded, setMarketingExpanded] = useState(false)
-  const [financeExpanded, setFinanceExpanded] = useState(false)
-  const [hrExpanded, setHrExpanded] = useState(false)
-  const [communityExpanded, setCommunityExpanded] = useState(false)
-  const [rolesExpanded, setRolesExpanded] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
   const [hasUnauthorizedAccess, setHasUnauthorizedAccess] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
-  const { user, loading: authLoading, logout, isAdmin, isManager, isCounselor } = useAuth()
+  const { user, loading: authLoading, logout } = useAuth()
+  const { permissions, loading: permissionsLoading } = usePermissions()
 
   const isLoginPage = pathname === "/login"
+
+  // Build dynamic menu based on user permissions
+  const sidebarItems = useMemo<FilteredMenuItem[]>(() => {
+    if (!user || permissionsLoading) return []
+    return buildMenuForUser(permissions, user.role || "")
+  }, [user, permissions, permissionsLoading])
 
   useEffect(() => {
     if (isLoginPage) return
@@ -49,149 +52,38 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Check if user has admin access (admin, manager, counselor, or SUPER_ADMIN)
-    // Make case-insensitive comparison
-    const userRole = user.role?.toLowerCase()
-    const allowedRoles = ["admin", "manager", "counselor", "super_admin"]
+    // Check if user has access to admin portal
+    // All roles except STUDENT can access (permissions are checked per menu item)
+    const userRole = user.role?.toUpperCase()
+    const blockedRoles = ["STUDENT"]
 
-    if (!allowedRoles.includes(userRole)) {
+    if (blockedRoles.includes(userRole || "")) {
       setHasUnauthorizedAccess(true)
     } else {
       setHasUnauthorizedAccess(false)
     }
   }, [router, isLoginPage, user, authLoading])
 
+  // Auto-expand submenus based on current path
   useEffect(() => {
-    if (pathname.startsWith("/admin/partners")) {
-      setPartnersExpanded(true)
-    }
-    if (pathname.startsWith("/admin/colleges")) {
-      setCollegesExpanded(true)
-    }
-    if (pathname.startsWith("/admin/marketing")) {
-      setMarketingExpanded(true)
-    }
-    if (pathname.startsWith("/admin/finance")) {
-      setFinanceExpanded(true)
-    }
-    if (pathname.startsWith("/admin/hr")) {
-      setHrExpanded(true)
-    }
-    if (pathname.startsWith("/admin/community")) {
-      setCommunityExpanded(true)
-    }
-    if (pathname.startsWith("/admin/roles") || pathname.startsWith("/admin/permissions") || pathname.startsWith("/admin/user-permissions")) {
-      setRolesExpanded(true)
-    }
-  }, [pathname])
+    const newExpandedMenus: Record<string, boolean> = {}
 
-  const sidebarItems = [
-    { id: "dashboard", label: "Dashboard", icon: Home, href: "/admin/dashboard" },
-    { id: "leads", label: "Leads", icon: Users, href: "/admin/leads" },
-    { id: "ai-calling", label: "AI Calling", icon: Phone, href: "/admin/ai-calling" },
-    { id: "students", label: "Students", icon: GraduationCap, href: "/admin/students" },
-    { id: "applications", label: "Applications", icon: FileText, href: "/admin/applications" },
-    { id: "community", label: "Community", icon: MessageSquare, href: "/admin/community" },
-    {
-      id: "colleges",
-      label: "Colleges",
-      icon: Building2,
-      href: "/admin/colleges",
-      hasSubmenu: true,
-      submenu: [
-        { id: "all-colleges", label: "All Colleges", href: "/admin/colleges" },
-        { id: "partner-colleges", label: "Partner Colleges", href: "/admin/colleges/partners" },
-        { id: "partnership-performance", label: "Partnership Performance", href: "/admin/colleges/performance" },
-        { id: "commission-structure", label: "Commission Structure", href: "/admin/colleges/commission" },
-        { id: "course-catalog", label: "Course Catalog", href: "/admin/colleges/courses" },
-        { id: "intake-calendar", label: "Intake Calendar", href: "/admin/colleges/intakes" },
-        { id: "college-accounts", label: "College Accounts", href: "/admin/colleges/accounts" },
-      ],
-    },
-    {
-      id: "partners",
-      label: "Partners",
-      icon: UserCheck,
-      href: "/admin/partners",
-      hasSubmenu: true,
-      submenu: [
-        { id: "partners-overview", label: "Overview", href: "/admin/partners" },
-        { id: "college-partners", label: "College Partners", href: "/admin/partners/colleges" },
-        { id: "subagent-partners", label: "Sub-Agent Partners", href: "/admin/partners/subagents" },
-      ],
-    },
-    {
-      id: "marketing",
-      label: "Marketing",
-      icon: Megaphone,
-      href: "/admin/marketing",
-      hasSubmenu: true,
-      submenu: [
-        { id: "marketing-overview", label: "Overview", href: "/admin/marketing" },
-        { id: "offline-marketing", label: "Offline Marketing", href: "/admin/marketing/offline" },
-        { id: "webinars", label: "Webinars", href: "/admin/marketing/webinars" },
-        { id: "social-media", label: "Social Media", href: "/admin/marketing/social" },
-        { id: "digital-campaigns", label: "Digital Campaigns", href: "/admin/marketing/digital" },
-        { id: "content-marketing", label: "Content Marketing", href: "/admin/marketing/content" },
-        { id: "partner-marketing", label: "Partner Marketing", href: "/admin/marketing/partner" },
-      ],
-    },
-    {
-      id: "finance",
-      label: "Finance",
-      icon: DollarSign,
-      href: "/admin/finance",
-      hasSubmenu: true,
-      submenu: [
-        { id: "finance-overview", label: "Overview", href: "/admin/finance" },
-        { id: "invoices", label: "Invoice Generation", href: "/admin/finance/invoices" },
-        { id: "expenses", label: "Expense Management", href: "/admin/finance/expenses" },
-      ],
-    },
-    {
-      id: "hr",
-      label: "HR",
-      icon: UserCog,
-      href: "/admin/hr",
-      hasSubmenu: true,
-      submenu: [
-        { id: "hr-overview", label: "Overview", href: "/admin/hr" },
-        { id: "leave-management", label: "Leave Management", href: "/admin/hr/leave" },
-        { id: "attendance", label: "Attendance", href: "/admin/hr/attendance" },
-        { id: "training", label: "Training Records", href: "/admin/hr/training" },
-      ],
-    },
-    {
-      id: "assets",
-      label: "Assets",
-      icon: Laptop,
-      href: "/admin/assets"
-    },
-    {
-      id: "reports",
-      label: "Reports",
-      icon: BarChart3,
-      href: "/admin/reports"
-    },
-    {
-      id: "roles",
-      label: "Roles & Permissions",
-      icon: Shield,
-      href: "/admin/roles",
-      hasSubmenu: true,
-      submenu: [
-        { id: "roles-management", label: "Roles Management", href: "/admin/roles" },
-        { id: "permissions-management", label: "Permissions", href: "/admin/permissions" },
-        { id: "user-permissions", label: "User Permissions", href: "/admin/user-permissions" },
-      ],
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: Settings,
-      href: "/admin/settings"
-    },
-  ]
+    sidebarItems.forEach(item => {
+      if (item.hasSubmenu && pathname.startsWith(item.href)) {
+        newExpandedMenus[item.id] = true
+      }
+    })
+
+    setExpandedMenus(prev => ({ ...prev, ...newExpandedMenus }))
+  }, [pathname, sidebarItems])
+
+  // Toggle submenu expansion
+  const toggleSubmenu = (menuId: string) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuId]: !prev[menuId]
+    }))
+  }
 
   const handleLogout = () => {
     logout()
@@ -339,106 +231,92 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 px-4 py-6 overflow-y-auto h-[calc(100vh-16rem)] sidebar-scroll">
-          <ul className="space-y-1">
-            {sidebarItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href || (item.hasSubmenu && pathname.startsWith(item.href))
+          {permissionsLoading ? (
+            // Show loading skeleton while permissions load
+            <ul className="space-y-1">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <li key={i} className="px-4 py-3">
+                  <Skeleton className="h-10 w-full" />
+                </li>
+              ))}
+            </ul>
+          ) : sidebarItems.length === 0 ? (
+            // Show message if no menu items available
+            <div className="text-center text-blue-100 py-8">
+              <p className="text-sm">No menu items available</p>
+              <p className="text-xs mt-2">Contact administrator for access</p>
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {sidebarItems.map((item) => {
+                const Icon = item.icon
+                const isActive = pathname === item.href || (item.hasSubmenu && pathname.startsWith(item.href))
+                const isExpanded = expandedMenus[item.id] || false
 
-              if (item.hasSubmenu) {
-                const isExpanded =
-                  item.id === "partners"
-                    ? partnersExpanded
-                    : item.id === "colleges"
-                      ? collegesExpanded
-                      : item.id === "marketing"
-                        ? marketingExpanded
-                        : item.id === "finance"
-                          ? financeExpanded
-                          : item.id === "hr"
-                            ? hrExpanded
-                            : item.id === "community"
-                              ? communityExpanded
-                              : item.id === "roles"
-                                ? rolesExpanded
-                                : false
-
-                const toggleExpanded =
-                  item.id === "partners"
-                    ? () => setPartnersExpanded(!partnersExpanded)
-                    : item.id === "colleges"
-                      ? () => setCollegesExpanded(!collegesExpanded)
-                      : item.id === "marketing"
-                        ? () => setMarketingExpanded(!marketingExpanded)
-                        : item.id === "finance"
-                          ? () => setFinanceExpanded(!financeExpanded)
-                          : item.id === "hr"
-                            ? () => setHrExpanded(!hrExpanded)
-                            : item.id === "community"
-                              ? () => setCommunityExpanded(!communityExpanded)
-                              : item.id === "roles"
-                                ? () => setRolesExpanded(!rolesExpanded)
-                                : () => { }
+                if (item.hasSubmenu) {
+                  return (
+                    <li key={item.id}>
+                      <button
+                        onClick={() => toggleSubmenu(item.id)}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${isActive
+                            ? "bg-white text-blue-600 shadow-lg font-semibold"
+                            : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
+                          }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-blue-600" : "text-blue-200"}`} />
+                          <span className="font-medium">{item.label}</span>
+                        </div>
+                        <ChevronDown
+                          className={`w-4 h-4 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                      {isExpanded && item.submenu && item.submenu.length > 0 && (
+                        <ul className="mt-2 ml-8 space-y-1 border-l-2 border-blue-400/30 pl-3">
+                          {item.submenu.map((subItem) => {
+                            const isSubActive = pathname === subItem.href
+                            return (
+                              <li key={subItem.id}>
+                                <Link
+                                  href={subItem.href}
+                                  onClick={() => setSidebarOpen(false)}
+                                  className={`flex items-center px-3 py-2 rounded-lg transition-all text-sm ${isSubActive
+                                      ? "bg-blue-500/30 text-white font-medium"
+                                      : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
+                                    }`}
+                                >
+                                  <span>{subItem.label}</span>
+                                </Link>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  )
+                }
 
                 return (
                   <li key={item.id}>
-                    <button
-                      onClick={toggleExpanded}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${isActive
-                        ? "bg-white text-blue-600 shadow-lg font-semibold"
-                        : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
+                    <Link
+                      href={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex items-center justify-between px-4 py-3 rounded-lg transition-all ${isActive
+                          ? "bg-white text-blue-600 shadow-lg font-semibold"
+                          : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
                         }`}
                     >
                       <div className="flex items-center gap-3">
                         <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-blue-600" : "text-blue-200"}`} />
                         <span className="font-medium">{item.label}</span>
                       </div>
-                      <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                    </button>
-                    {isExpanded && (
-                      <ul className="mt-2 ml-8 space-y-1 border-l-2 border-blue-400/30 pl-3">
-                        {item.submenu?.map((subItem) => {
-                          const isSubActive = pathname === subItem.href
-                          return (
-                            <li key={subItem.id}>
-                              <Link
-                                href={subItem.href}
-                                onClick={() => setSidebarOpen(false)}
-                                className={`flex items-center px-3 py-2 rounded-lg transition-all text-sm ${isSubActive
-                                  ? "bg-blue-500/30 text-white font-medium"
-                                  : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
-                                  }`}
-                              >
-                                <span>{subItem.label}</span>
-                              </Link>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    )}
+                      {isActive && <ChevronRight className="w-4 h-4 ml-auto text-blue-600 flex-shrink-0" />}
+                    </Link>
                   </li>
                 )
-              }
-
-              return (
-                <li key={item.id}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center justify-between px-4 py-3 rounded-lg transition-all ${isActive
-                      ? "bg-white text-blue-600 shadow-lg font-semibold"
-                      : "text-blue-100 hover:bg-blue-500/20 hover:text-white"
-                      }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-blue-600" : "text-blue-200"}`} />
-                      <span className="font-medium">{item.label}</span>
-                    </div>
-                    {isActive && <ChevronRight className="w-4 h-4 ml-auto text-blue-600 flex-shrink-0" />}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
+              })}
+            </ul>
+          )}
         </nav>
 
         <div className="p-4 border-t border-blue-500/30">
@@ -500,7 +378,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem>Profile</DropdownMenuItem>
                       <DropdownMenuItem>Settings</DropdownMenuItem>
-                      {(isAdmin || isManager) && <DropdownMenuItem>Switch Branch</DropdownMenuItem>}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout} className="text-red-600">
                         <LogOut className="w-4 h-4 mr-2" />

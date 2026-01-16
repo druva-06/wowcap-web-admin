@@ -154,23 +154,45 @@ export async function getUserById(userId: number): Promise<UserResponseDto> {
   return mapUserApiResponseToDto(apiData)
 }
 
+// Response type for invitation-based user creation
+export interface InvitationEmailDetails {
+  recipientEmail: string
+  subject: string
+  signupLink: string
+  sent: boolean
+}
+
+export interface CreateUserInvitationResponse {
+  id: number
+  email: string
+  username: string
+  firstName: string
+  lastName: string
+  phoneNumber: string
+  roleName: string
+  roleDisplayName: string
+  invitationToken: string
+  status: string
+  emailDetails?: InvitationEmailDetails
+}
+
 /**
- * Create a new user
+ * Create a new user (actually creates an invitation for admin-invited roles)
  */
-export async function createUser(userData: UserRequestDto): Promise<UserResponseDto> {
+export async function createUser(userData: UserRequestDto): Promise<CreateUserInvitationResponse> {
   const response = await api.post<any>("/api/user/add", userData)
 
   if (!response.success || !response.data) {
-    throw new Error(response.message || "Failed to create user")
+    throw new Error(response.message || "Failed to create invitation")
   }
 
   const apiData = response.data.response || response.data
   
-  if (!apiData || !apiData.user_id) {
+  if (!apiData || !apiData.id) {
     throw new Error("Invalid response structure from API")
   }
 
-  return mapUserApiResponseToDto(apiData)
+  return apiData as CreateUserInvitationResponse
 }
 
 /**

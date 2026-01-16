@@ -88,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(user)
 
         // Determine redirect path based on role
+        // ALL users now go to unified /admin portal (except STUDENT)
         let redirectPath = '/login'
         const userRole = apiUser.role?.toUpperCase()
 
@@ -100,22 +101,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
+        // All non-student roles go to unified admin portal
         switch (userRole) {
           case 'COLLEGE':
-            redirectPath = '/college/dashboard'
-            break
           case 'SUB_AGENT':
           case 'SUBAGENT':
-            redirectPath = '/subagent/dashboard'
-            break
           case 'COUNSELOR':
           case 'COUNSELLOR':
-            redirectPath = '/counselor/dashboard'
-            break
           case 'SUPER_ADMIN':
           case 'ADMIN':
-            redirectPath = '/admin/dashboard'
-            break
           case 'MANAGER':
             redirectPath = '/admin/dashboard'
             break

@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Users, Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Users, Plus, Search, ChevronLeft, ChevronRight, Mail } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import {
@@ -16,6 +17,13 @@ import {
     UserResponseDto,
     PagedUserResponseDto
 } from "@/lib/api/users"
+import {
+    getAllInvitations,
+    resendInvitation,
+    revokeInvitation,
+    InvitationResponseDto,
+    PagedInvitationResponseDto
+} from "@/lib/api/invitations"
 import { getActiveRoles, RoleResponseDto } from "@/lib/api/roles"
 import {
     getUserPermissions,
@@ -30,12 +38,15 @@ import { UserFormDialog } from "@/components/user-management/UserFormDialog"
 import { EditUserRoleDialog } from "@/components/user-management/EditUserRoleDialog"
 import { DeleteUserDialog } from "@/components/user-management/DeleteUserDialog"
 import { ManagePermissionsDialog } from "@/components/user-management/ManagePermissionsDialog"
+import { PendingInvitationsList } from "@/components/user-management/PendingInvitationsList"
 
 export default function UserManagementPage() {
     const { user } = useAuth()
     const [loading, setLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
     const [users, setUsers] = useState<UserResponseDto[]>([])
+    const [invitations, setInvitations] = useState<InvitationResponseDto[]>([])
+    const [activeTab, setActiveTab] = useState("users")
     const [pagination, setPagination] = useState({
         currentPage: 0,
         totalPages: 0,
@@ -67,6 +78,7 @@ export default function UserManagementPage() {
 
     useEffect(() => {
         fetchUsers()
+        fetchInvitations()
         fetchRoles()
         fetchAllPermissions()
     }, [])
@@ -91,6 +103,20 @@ export default function UserManagementPage() {
             })
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchInvitations = async () => {
+        try {
+            const data = await getAllInvitations(0, 20) // Get first 20 invitations
+            setInvitations(data.invitations)
+        } catch (error) {
+            console.error("Error fetching invitations:", error)
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to fetch invitations",
+                variant: "destructive",
+            })
         }
     }
 
@@ -141,18 +167,46 @@ export default function UserManagementPage() {
 
     const handleAddUser = async () => {
         try {
-            await createUser(formData)
-            toast({
-                title: "Success",
-                description: "User created successfully",
-            })
+            const response = await createUser(formData)
+
+            // Show success message with signup link if available (dev mode)
+            if (response.emailDetails?.signupLink) {
+                toast({
+                    title: "Invitation Sent (Dev Mode)",
+                    description: (
+                        <div className="space-y-2">
+                            <p>Invitation created successfully.</p>
+                            <div className="bg-white p-2 rounded border text-xs font-mono break-all">
+                                {response.emailDetails.signupLink}
+                            </div>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(response.emailDetails!.signupLink)
+                                    toast({ title: "Copied!", description: "Signup link copied to clipboard" })
+                                }}
+                                className="text-blue-600 hover:underline text-xs"
+                            >
+                                Click to copy signup link
+                            </button>
+                        </div>
+                    ),
+                    duration: 10000, // Show for 10 seconds
+                })
+            } else {
+                toast({
+                    title: "Invitation Sent",
+                    description: "Invitation email sent successfully. User will receive a signup link to complete registration.",
+                })
+            }
+
             setAddUserDialogOpen(false)
             resetForm()
             fetchUsers(pagination.currentPage)
+            fetchInvitations() // Refresh invitations list
         } catch (error) {
             toast({
                 title: "Error",
-                description: error instanceof Error ? error.message : "Failed to create user",
+                description: error instanceof Error ? error.message : "Failed to send invitation",
                 variant: "destructive",
             })
         }
@@ -215,6 +269,40 @@ export default function UserManagementPage() {
             toast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to assign permissions",
+                variant: "destructive",
+            })
+        }
+    }
+
+    const handleResendInvitation = async (invitationId: number) => {
+        try {
+            await resendInvitation(invitationId)
+            toast({
+                title: "Success",
+                description: "Invitation resent successfully",
+            })
+            fetchInvitations()
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to resend invitation",
+                variant: "destructive",
+            })
+        }
+    }
+
+    const handleRevokeInvitation = async (invitationId: number) => {
+        try {
+            await revokeInvitation(invitationId)
+            toast({
+                title: "Success",
+                description: "Invitation revoked successfully",
+            })
+            fetchInvitations()
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to revoke invitation",
                 variant: "destructive",
             })
         }
@@ -330,75 +418,99 @@ export default function UserManagementPage() {
                     </CardContent>
                 </Card>
 
-                {/* Users List */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Users className="w-5 h-5 text-indigo-600" />
-                            All Users {pagination.totalElements > 0 && `(${pagination.totalElements})`}
-                        </CardTitle>
-                        <CardDescription>Manage user accounts and their access</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {loading ? (
-                            <div className="text-center py-12">
-                                <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto"></div>
-                                <p className="text-gray-500 mt-4">Loading users...</p>
-                            </div>
-                        ) : !users || users.length === 0 ? (
-                            <div className="text-center py-12">
-                                <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                <p className="text-gray-500">No users found</p>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="space-y-3">
-                                    {users.map((user) => (
-                                        <UserListItem
-                                            key={user.userId}
-                                            user={user}
-                                            onEdit={openEditDialog}
-                                            onDelete={openDeleteDialog}
-                                            onManagePermissions={openPermissionsDialog}
-                                        />
-                                    ))}
-                                </div>
+                {/* Tabs for Users and Invitations */}
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+                    <TabsList className="grid w-full max-w-md grid-cols-2">
+                        <TabsTrigger value="users">
+                            <Users className="w-4 h-4 mr-2" />
+                            Users ({pagination.totalElements})
+                        </TabsTrigger>
+                        <TabsTrigger value="invitations">
+                            <Mail className="w-4 h-4 mr-2" />
+                            Pending Invitations ({invitations.filter(i => i.status === "PENDING").length})
+                        </TabsTrigger>
+                    </TabsList>
 
-                                {/* Pagination */}
-                                {pagination.totalPages > 1 && (
-                                    <div className="flex items-center justify-between mt-6 pt-6 border-t">
-                                        <p className="text-sm text-gray-600">
-                                            Showing {pagination.currentPage * pagination.pageSize + 1} to{' '}
-                                            {Math.min((pagination.currentPage + 1) * pagination.pageSize, pagination.totalElements)} of{' '}
-                                            {pagination.totalElements} users
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handlePageChange(pagination.currentPage - 1)}
-                                                disabled={pagination.currentPage === 0}
-                                            >
-                                                <ChevronLeft className="w-4 h-4" />
-                                            </Button>
-                                            <span className="text-sm">
-                                                Page {pagination.currentPage + 1} of {pagination.totalPages}
-                                            </span>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handlePageChange(pagination.currentPage + 1)}
-                                                disabled={pagination.currentPage >= pagination.totalPages - 1}
-                                            >
-                                                <ChevronRight className="w-4 h-4" />
-                                            </Button>
-                                        </div>
+                    <TabsContent value="users" className="mt-6">
+                        {/* Users List */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Users className="w-5 h-5 text-indigo-600" />
+                                    All Users {pagination.totalElements > 0 && `(${pagination.totalElements})`}
+                                </CardTitle>
+                                <CardDescription>Manage user accounts and their access</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {loading ? (
+                                    <div className="text-center py-12">
+                                        <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto"></div>
+                                        <p className="text-gray-500 mt-4">Loading users...</p>
                                     </div>
+                                ) : !users || users.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                        <p className="text-gray-500">No users found</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="space-y-3">
+                                            {users.map((user) => (
+                                                <UserListItem
+                                                    key={user.userId}
+                                                    user={user}
+                                                    onEdit={openEditDialog}
+                                                    onDelete={openDeleteDialog}
+                                                    onManagePermissions={openPermissionsDialog}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {/* Pagination */}
+                                        {pagination.totalPages > 1 && (
+                                            <div className="flex items-center justify-between mt-6 pt-6 border-t">
+                                                <p className="text-sm text-gray-600">
+                                                    Showing {pagination.currentPage * pagination.pageSize + 1} to{' '}
+                                                    {Math.min((pagination.currentPage + 1) * pagination.pageSize, pagination.totalElements)} of{' '}
+                                                    {pagination.totalElements} users
+                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                                                        disabled={pagination.currentPage === 0}
+                                                    >
+                                                        <ChevronLeft className="w-4 h-4" />
+                                                    </Button>
+                                                    <span className="text-sm">
+                                                        Page {pagination.currentPage + 1} of {pagination.totalPages}
+                                                    </span>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                                                        disabled={pagination.currentPage >= pagination.totalPages - 1}
+                                                    >
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
-                            </>
-                        )}
-                    </CardContent>
-                </Card>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="invitations" className="mt-6">
+                        <PendingInvitationsList
+                            invitations={invitations}
+                            onResend={handleResendInvitation}
+                            onRevoke={handleRevokeInvitation}
+                        />
+                    </TabsContent>
+                </Tabs>
 
                 {/* Dialogs */}
                 <UserFormDialog

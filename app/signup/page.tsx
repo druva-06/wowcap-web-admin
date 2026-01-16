@@ -2,17 +2,21 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff, User, CheckCircle, Upload, FileText, Clock, Shield, Zap } from "lucide-react"
+import { Eye, EyeOff, User, CheckCircle, Upload, FileText, Clock, Shield, Zap, AlertCircle, Mail } from "lucide-react"
+import { validateInvitationToken } from "@/lib/api/invitations"
+import { signupStudent, signupWithInvitation } from "@/lib/api/auth"
+import type { ValidationResponseDto } from "@/lib/api/invitations"
 
 export default function SignupPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState({
@@ -24,6 +28,49 @@ export default function SignupPage() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Invitation-specific state
+  const [invitationToken, setInvitationToken] = useState<string | null>(null)
+  const [invitationData, setInvitationData] = useState<ValidationResponseDto | null>(null)
+  const [isValidatingToken, setIsValidatingToken] = useState(false)
+  const [tokenError, setTokenError] = useState<string | null>(null)
+
+  // Check for invitation token on mount
+  useEffect(() => {
+    const token = searchParams.get('token')
+    if (token) {
+      setInvitationToken(token)
+      validateToken(token)
+    }
+  }, [searchParams])
+
+  const validateToken = async (token: string) => {
+    setIsValidatingToken(true)
+    setTokenError(null)
+
+    try {
+      const validation = await validateInvitationToken(token)
+
+      if (!validation.valid) {
+        setTokenError(validation.message)
+        setInvitationData(null)
+      } else {
+        setInvitationData(validation)
+        // Pre-fill form with invitation data
+        setFormData(prev => ({
+          ...prev,
+          email: validation.email,
+          fullName: `${validation.firstName} ${validation.lastName}`,
+          phone: validation.phoneNumber || "",
+        }))
+      }
+    } catch (error) {
+      setTokenError(error instanceof Error ? error.message : 'Failed to validate invitation token')
+      setInvitationData(null)
+    } finally {
+      setIsValidatingToken(false)
+    }
+  }
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -65,25 +112,56 @@ export default function SignupPage() {
 
     setIsLoading(true)
 
-    // Demo signup - simulate account creation
-    setTimeout(() => {
+    try {
+      let signupResponse;
+
+      if (invitationToken && invitationData) {
+        // Invited user signup
+        signupResponse = await signupWithInvitation({
+          invitationToken,
+          email: formData.email,
+          password: formData.password,
+        })
+      } else {
+        // Student signup (direct, no invitation)
+        signupResponse = await signupStudent({
+          fullName: formData.fullName,
+          email: formData.email,
+          phoneNumber: formData.phone,
+          password: formData.password,
+        })
+      }
+
       // Store user session
       localStorage.setItem(
         "wowcap_user",
         JSON.stringify({
-          email: formData.email,
-          name: formData.fullName,
+          userId: signupResponse.userId,
+          email: signupResponse.email,
+          name: `${signupResponse.firstName} ${signupResponse.lastName}`,
+          username: signupResponse.username,
+          role: signupResponse.roleName,
           phone: formData.phone,
           signupTime: new Date().toISOString(),
-          documentVaultSetup: false, // Track if user has set up document vault
+          documentVaultSetup: false,
         }),
       )
 
       window.dispatchEvent(new Event("authStateChanged"))
 
+      // Only show document vault encouragement for students
+      if (signupResponse.roleName === 'STUDENT') {
+        setCurrentStep(2) // Move to document vault encouragement
+      } else {
+        // For other roles (COLLEGE, COUNSELOR, etc.), redirect to appropriate dashboard
+        router.push("/dashboard")
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Signup failed. Please try again.'
+      setErrors({ submit: errorMessage })
+    } finally {
       setIsLoading(false)
-      setCurrentStep(2) // Move to document vault encouragement
-    }, 1000)
+    }
   }
 
   const handleSkipDocuments = () => {
@@ -206,10 +284,52 @@ export default function SignupPage() {
               <User className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Join WowCap
+              {invitationToken ? 'Complete Your Registration' : 'Join WowCap'}
             </h1>
-            <p className="text-gray-600 mt-2">Create your free account today</p>
+            <p className="text-gray-600 mt-2">
+              {invitationToken ? 'You\'ve been invited to join' : 'Create your free account today'}
+            </p>
           </div>
+
+          {/* Invitation Token Validation Status */}
+          {invitationToken && (
+            <div className="mb-6">
+              {isValidatingToken && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <span className="text-blue-700 text-sm">Validating invitation...</span>
+                </div>
+              )}
+
+              {!isValidatingToken && tokenError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-red-800 font-semibold text-sm mb-1">Invalid Invitation</p>
+                    <p className="text-red-700 text-sm">{tokenError}</p>
+                    <p className="text-red-600 text-xs mt-2">
+                      If you believe this is an error, please contact your administrator.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {!isValidatingToken && invitationData && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+                  <Mail className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-green-800 font-semibold text-sm mb-1">Invitation Verified ✓</p>
+                    <p className="text-green-700 text-sm">
+                      You've been invited to join as <strong>{invitationData.roleName}</strong>
+                    </p>
+                    <p className="text-green-600 text-xs mt-1">
+                      Complete the form below to create your account
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
@@ -233,8 +353,12 @@ export default function SignupPage() {
                 placeholder="Enter your email"
                 value={formData.email}
                 onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                className={`border-gray-300 focus:border-blue-500 focus:ring-blue-500 ${errors.email ? "border-red-500" : ""}`}
+                disabled={!!invitationToken}
+                className={`border-gray-300 focus:border-blue-500 focus:ring-blue-500 ${errors.email ? "border-red-500" : ""} ${invitationToken ? "bg-gray-50" : ""}`}
               />
+              {invitationToken && (
+                <p className="text-xs text-gray-500">Email is pre-filled from your invitation</p>
+              )}
               {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
             </div>
 
@@ -304,12 +428,20 @@ export default function SignupPage() {
               </span>
             </div>
 
+            {/* Submit Error */}
+            {errors.submit && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-red-700 text-sm">{errors.submit}</p>
+              </div>
+            )}
+
             <Button
               type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 font-semibold shadow-lg"
+              disabled={isLoading || (invitationToken && !invitationData) || isValidatingToken}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Creating Account..." : "Create Free Account"}
+              {isLoading ? "Creating Account..." : invitationToken ? "Complete Registration" : "Create Free Account"}
             </Button>
           </form>
 

@@ -152,7 +152,24 @@ export async function getUserPermissions(userId: number): Promise<UserPermission
 
   return response.data!
 }
-
+/**
+ * Get current logged-in user's permissions
+ * Uses the stored user ID from auth context
+ */
+export async function getCurrentUserPermissions(): Promise<UserPermissionsResponseDto> {
+  // Get user ID from storage
+  const userStr = localStorage.getItem("wowcap_user") || sessionStorage.getItem("wowcap_user")
+  if (!userStr) {
+    throw new Error("No user logged in")
+  }
+  
+  const user = JSON.parse(userStr)
+  if (!user.user_id && !user.id) {
+    throw new Error("Invalid user data")
+  }
+  
+  return getUserPermissions(user.user_id || user.id)
+}
 /**
  * Assign additional permissions to user
  */
