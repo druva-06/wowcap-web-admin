@@ -444,12 +444,12 @@ All actions are logged for audit:
 
 ### Security Team
 
-- Email: security@wowcap.com
+- Email: security@meritcap.com
 - Incident Hotline: +1-XXX-XXX-XXXX
 
 ### Reporting Vulnerabilities
 
-Please report security issues to security@wowcap.com with:
+Please report security issues to security@meritcap.com with:
 
 1. Description of vulnerability
 2. Steps to reproduce

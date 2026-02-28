@@ -20,7 +20,7 @@ export default function LeadAssignmentPage() {
     {
       id: "1",
       name: "Amit Counselor",
-      email: "amit@wowcap.com",
+      email: "amit@meritcap.com",
       role: "Senior Counselor",
       specialization: "USA & Canada",
       activeLeads: 12,
@@ -33,7 +33,7 @@ export default function LeadAssignmentPage() {
     {
       id: "2",
       name: "Priya Counselor",
-      email: "priya@wowcap.com",
+      email: "priya@meritcap.com",
       role: "Senior Counselor",
       specialization: "UK & Europe",
       activeLeads: 15,
@@ -46,7 +46,7 @@ export default function LeadAssignmentPage() {
     {
       id: "3",
       name: "Ravi Counselor",
-      email: "ravi@wowcap.com",
+      email: "ravi@meritcap.com",
       role: "Counselor",
       specialization: "Australia & New Zealand",
       activeLeads: 18,
@@ -59,7 +59,7 @@ export default function LeadAssignmentPage() {
     {
       id: "4",
       name: "Sneha Counselor",
-      email: "sneha@wowcap.com",
+      email: "sneha@meritcap.com",
       role: "Counselor",
       specialization: "USA & UK",
       activeLeads: 10,
@@ -72,7 +72,7 @@ export default function LeadAssignmentPage() {
     {
       id: "5",
       name: "Rahul Counselor",
-      email: "rahul@wowcap.com",
+      email: "rahul@meritcap.com",
       role: "Junior Counselor",
       specialization: "General",
       activeLeads: 8,
@@ -85,7 +85,7 @@ export default function LeadAssignmentPage() {
     {
       id: "6",
       name: "Anjali Counselor",
-      email: "anjali@wowcap.com",
+      email: "anjali@meritcap.com",
       role: "Senior Counselor",
       specialization: "Canada & Europe",
       activeLeads: 14,
@@ -98,7 +98,7 @@ export default function LeadAssignmentPage() {
     {
       id: "7",
       name: "Vikram Counselor",
-      email: "vikram@wowcap.com",
+      email: "vikram@meritcap.com",
       role: "Counselor",
       specialization: "Australia",
       activeLeads: 16,
@@ -111,7 +111,7 @@ export default function LeadAssignmentPage() {
     {
       id: "8",
       name: "Neha Counselor",
-      email: "neha@wowcap.com",
+      email: "neha@meritcap.com",
       role: "Junior Counselor",
       specialization: "UK",
       activeLeads: 6,
@@ -124,7 +124,7 @@ export default function LeadAssignmentPage() {
     {
       id: "9",
       name: "Karan Counselor",
-      email: "karan@wowcap.com",
+      email: "karan@meritcap.com",
       role: "Senior Counselor",
       specialization: "USA",
       activeLeads: 13,
@@ -137,7 +137,7 @@ export default function LeadAssignmentPage() {
     {
       id: "10",
       name: "Pooja Counselor",
-      email: "pooja@wowcap.com",
+      email: "pooja@meritcap.com",
       role: "Counselor",
       specialization: "Canada",
       activeLeads: 11,

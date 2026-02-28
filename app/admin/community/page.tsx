@@ -135,7 +135,7 @@ const mockTeamMembers: TeamMember[] = [
   {
     id: "TEAM001",
     name: "Sarah Johnson",
-    email: "sarah.j@wowcap.com",
+    email: "sarah.j@meritcap.com",
     role: "admin",
     postsModerated: 245,
     joinedDate: "2023-06-01",
@@ -151,7 +151,7 @@ const mockTeamMembers: TeamMember[] = [
   {
     id: "TEAM002",
     name: "Michael Chen",
-    email: "michael.c@wowcap.com",
+    email: "michael.c@meritcap.com",
     role: "moderator",
     postsModerated: 187,
     joinedDate: "2023-08-15",
@@ -167,7 +167,7 @@ const mockTeamMembers: TeamMember[] = [
   {
     id: "TEAM003",
     name: "Emily Davis",
-    email: "emily.d@wowcap.com",
+    email: "emily.d@meritcap.com",
     role: "reviewer",
     postsModerated: 98,
     joinedDate: "2023-11-20",

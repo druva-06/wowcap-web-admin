@@ -104,7 +104,7 @@ export default function SettingsPage() {
     {
       id: "TM-001",
       name: "Vinayak Kumar",
-      email: "vinayak@wowcap.com",
+      email: "vinayak@meritcap.com",
       phone: "+91 98765 43211",
       status: "active",
       joinDate: "2023-01-15",
@@ -124,7 +124,7 @@ export default function SettingsPage() {
     {
       id: "TM-002",
       name: "Priya Sharma",
-      email: "priya@wowcap.com",
+      email: "priya@meritcap.com",
       phone: "+91 98765 43212",
       status: "active",
       joinDate: "2023-03-20",
@@ -368,7 +368,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <Label htmlFor="company-email">Company Email</Label>
-                  <Input id="company-email" type="email" defaultValue="info@wowcap.com" />
+                  <Input id="company-email" type="email" defaultValue="info@meritcap.com" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -378,7 +378,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <Label htmlFor="company-website">Website</Label>
-                  <Input id="company-website" defaultValue="www.wowcap.com" />
+                  <Input id="company-website" defaultValue="www.meritcap.com" />
                 </div>
               </div>
             </CardContent>

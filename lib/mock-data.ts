@@ -341,7 +341,7 @@ export const mockUsers: User[] = [
   {
     id: "U001",
     name: "Admin User",
-    email: "admin@wowcap.com",
+    email: "admin@meritcap.com",
     role: "admin",
     avatar: "/placeholder.svg?height=40&width=40",
     phone: "+91 98765 43210",
@@ -350,7 +350,7 @@ export const mockUsers: User[] = [
   {
     id: "U002",
     name: "Vinayak Kumar",
-    email: "vinayak@wowcap.com",
+    email: "vinayak@meritcap.com",
     role: "counselor",
     avatar: "/placeholder.svg?height=40&width=40",
     phone: "+91 98765 43211",
@@ -359,7 +359,7 @@ export const mockUsers: User[] = [
   {
     id: "U003",
     name: "Priya Sharma",
-    email: "priya@wowcap.com",
+    email: "priya@meritcap.com",
     role: "counselor",
     avatar: "/placeholder.svg?height=40&width=40",
     phone: "+91 98765 43212",
@@ -368,7 +368,7 @@ export const mockUsers: User[] = [
   {
     id: "U004",
     name: "Rahul Verma",
-    email: "rahul@wowcap.com",
+    email: "rahul@meritcap.com",
     role: "manager",
     avatar: "/placeholder.svg?height=40&width=40",
     phone: "+91 98765 43213",
@@ -377,7 +377,7 @@ export const mockUsers: User[] = [
   {
     id: "U005",
     name: "Sneha Patel",
-    email: "sneha@wowcap.com",
+    email: "sneha@meritcap.com",
     role: "counselor",
     avatar: "/placeholder.svg?height=40&width=40",
     phone: "+91 98765 43214",
@@ -1463,7 +1463,7 @@ export const mockTeamMembers: TeamMember[] = [
   {
     id: "TM-001",
     name: "Vinayak Kumar",
-    email: "vinayak@wowcap.com",
+    email: "vinayak@meritcap.com",
     phone: "+91 98765 43211",
     avatar: "/placeholder.svg?height=40&width=40",
     status: "active",
@@ -1494,7 +1494,7 @@ export const mockTeamMembers: TeamMember[] = [
   {
     id: "TM-002",
     name: "Priya Sharma",
-    email: "priya@wowcap.com",
+    email: "priya@meritcap.com",
     phone: "+91 98765 43212",
     avatar: "/placeholder.svg?height=40&width=40",
     status: "active",

@@ -81,7 +81,7 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
     },
     counselor: {
       name: "Amit Kumar",
-      email: "amit.kumar@wowcap.com",
+      email: "amit.kumar@meritcap.com",
       phone: "+91 98765 00001",
     },
     subAgent: {

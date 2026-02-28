@@ -152,7 +152,7 @@ export const generateQRCode = async (campaignName: string): Promise<string> => {
   return new Promise((resolve) => {
     setTimeout(() => {
       // Mock QR code URL - in production this would use a QR code library
-      const qrCodeData = encodeURIComponent(`https://wowcap.com/register?campaign=${campaignName}`)
+      const qrCodeData = encodeURIComponent(`https://meritcap.com/register?campaign=${campaignName}`)
       resolve(`/placeholder.svg?height=200&width=200&query=QR Code for ${campaignName}`)
     }, 500)
   })
