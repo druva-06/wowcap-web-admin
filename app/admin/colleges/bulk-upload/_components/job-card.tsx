@@ -30,11 +30,10 @@ interface JobCardProps {
 export function JobCard({ job, onRemove, onRetry }: JobCardProps) {
     return (
         <Card
-            className={`transition-all duration-300 ${
-                job.status === "IN_PROGRESS"
+            className={`transition-all duration-300 ${job.status === "IN_PROGRESS"
                     ? "ring-2 ring-blue-200 shadow-md"
                     : ""
-            }`}
+                }`}
         >
             <CardContent className="p-5">
                 {/* Header row */}
@@ -42,22 +41,20 @@ export function JobCard({ job, onRemove, onRetry }: JobCardProps) {
                     {/* Left: File info */}
                     <div className="flex items-start gap-3 min-w-0 flex-1">
                         <div
-                            className={`p-2 rounded-lg flex-shrink-0 ${
-                                job.status === "COMPLETED"
+                            className={`p-2 rounded-lg flex-shrink-0 ${job.status === "COMPLETED"
                                     ? "bg-emerald-100"
                                     : job.status === "FAILED"
                                         ? "bg-red-100"
                                         : "bg-blue-100"
-                            }`}
+                                }`}
                         >
                             <FileSpreadsheet
-                                className={`h-5 w-5 ${
-                                    job.status === "COMPLETED"
+                                className={`h-5 w-5 ${job.status === "COMPLETED"
                                         ? "text-emerald-600"
                                         : job.status === "FAILED"
                                             ? "text-red-600"
                                             : "text-blue-600"
-                                }`}
+                                    }`}
                             />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -93,45 +90,45 @@ export function JobCard({ job, onRemove, onRetry }: JobCardProps) {
                     <div className="flex items-center gap-1">
                         {(job.status === "COMPLETED" ||
                             job.status === "FAILED") && (
-                            <button
-                                onClick={() => onRemove(job.id)}
-                                className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                title="Remove from list"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </button>
-                        )}
+                                <button
+                                    onClick={() => onRemove(job.id)}
+                                    className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                    title="Remove from list"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
+                            )}
                     </div>
                 </div>
 
                 {/* Progress bar */}
                 {(job.status === "PENDING" ||
                     job.status === "IN_PROGRESS") && (
-                    <div className="mt-4">
-                        <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs font-medium text-gray-600">
-                                {job.status === "PENDING"
-                                    ? "Waiting to start..."
-                                    : "Processing records..."}
-                            </span>
-                            <span className="text-xs font-semibold text-blue-600">
-                                {job.progress}%
-                            </span>
+                        <div className="mt-4">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs font-medium text-gray-600">
+                                    {job.status === "PENDING"
+                                        ? "Waiting to start..."
+                                        : "Processing records..."}
+                                </span>
+                                <span className="text-xs font-semibold text-blue-600">
+                                    {job.progress}%
+                                </span>
+                            </div>
+                            <Progress
+                                value={job.progress}
+                                className="h-2 bg-blue-100"
+                            />
+                            {job.processedRecords !== null &&
+                                job.totalRecords !== null && (
+                                    <p className="text-xs text-gray-500 mt-1.5">
+                                        {job.processedRecords.toLocaleString()} /{" "}
+                                        {job.totalRecords.toLocaleString()} records
+                                        processed
+                                    </p>
+                                )}
                         </div>
-                        <Progress
-                            value={job.progress}
-                            className="h-2 bg-blue-100"
-                        />
-                        {job.processedRecords !== null &&
-                            job.totalRecords !== null && (
-                                <p className="text-xs text-gray-500 mt-1.5">
-                                    {job.processedRecords.toLocaleString()} /{" "}
-                                    {job.totalRecords.toLocaleString()} records
-                                    processed
-                                </p>
-                            )}
-                    </div>
-                )}
+                    )}
 
                 {/* Completed stats */}
                 {job.status === "COMPLETED" && (
